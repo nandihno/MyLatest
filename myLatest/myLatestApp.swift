@@ -14,8 +14,15 @@ struct myLatestApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environment(stationStore)
+            TabView {
+                Tab("Today", systemImage: "rectangle.grid.1x2.fill") {
+                    ContentView()
+                        .environment(stationStore)
+                }
+                Tab("Health", systemImage: "heart.fill") {
+                    HealthView()
+                }
+            }
         }
     }
 }

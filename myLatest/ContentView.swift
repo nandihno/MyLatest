@@ -114,6 +114,7 @@ struct ContentView: View {
                 }
                 .padding()
             }
+            .refreshable { await performFetch() }
             .navigationTitle("My Latest")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -201,17 +202,21 @@ struct ContentView: View {
 
     // MARK: - Action
 
+    /// Called by the fetch button (non-async context).
     private func fetchData() {
+        Task { await performFetch() }
+    }
+
+    /// Shared async implementation — used by both the button and pull-to-refresh.
+    private func performFetch() async {
         withAnimation { loadState = .loading }
-        Task {
-            let data = await MockDataService.shared.fetchDashboard(
-                trainLineName: trainLineName,
-                homeStation:   homeStation,
-                cityStation:   cityStation
-            )
-            withAnimation(.spring(duration: 0.5)) {
-                loadState = .loaded(data)
-            }
+        let data = await MockDataService.shared.fetchDashboard(
+            trainLineName: trainLineName,
+            homeStation:   homeStation,
+            cityStation:   cityStation
+        )
+        withAnimation(.spring(duration: 0.5)) {
+            loadState = .loaded(data)
         }
     }
 }
