@@ -46,6 +46,9 @@ struct HealthView: View {
     private var scrollBody: some View {
         ScrollView {
             VStack(spacing: 16) {
+                WorkoutDistanceCard(data: healthData!.workoutData.weeklyDistance)
+                ActivitySummaryCard(activities:    healthData!.workoutData.activities,
+                                    weekStartDate: healthData!.workoutData.weeklyDistance.weekStartDate)
                 SleepCard(records: healthData!.sleepRecords)
                 HeartRateCard(stats: healthData!.heartRateStats)
             }
@@ -57,7 +60,12 @@ struct HealthView: View {
     // MARK: Data fetch
 
     private func load() async {
-        isLoading = true
+        // Only show the full-screen spinner on the very first load (no data yet).
+        // On pull-to-refresh, keep the existing cards visible — the system spinner
+        // at the top provides all the visual feedback needed.
+        if healthData == nil {
+            isLoading = true
+        }
         healthData = await HealthService.shared.fetchHealthData()
         isLoading = false
     }
@@ -317,6 +325,267 @@ private struct HeartRateCard: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 6)
         .background(colour.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+// MARK: - ActivityCategory display helpers
+
+private extension ActivityCategory {
+    var systemImage: String {
+        switch self {
+        case .walking:  return "figure.walk"
+        case .core:     return "figure.core.training"
+        case .strength: return "dumbbell"
+        case .gym:      return "figure.highintensity.intervaltraining"
+        }
+    }
+    var color: Color {
+        switch self {
+        case .walking:  return .teal
+        case .core:     return .purple
+        case .strength: return .blue
+        case .gym:      return .orange
+        }
+    }
+}
+
+// MARK: - Distance bar entry (used by WorkoutDistanceCard chart)
+
+private struct DistanceBarEntry: Identifiable {
+    let id     = UUID()
+    let day    : String
+    let series : String  // "This week" | "Last week"
+    let km     : Double
+}
+
+// MARK: - Workout Distance Card
+
+private struct WorkoutDistanceCard: View {
+    let data: WeeklyDistanceData
+
+    private var flatEntries: [DistanceBarEntry] {
+        data.days.flatMap { d in [
+            DistanceBarEntry(day: d.weekdayLabel, series: "This week", km: d.thisWeekKm),
+            DistanceBarEntry(day: d.weekdayLabel, series: "Last week",  km: d.lastWeekKm),
+        ]}
+    }
+
+    private var diffText: String {
+        guard data.lastWeekTotalKm > 0.01 else { return "" }
+        let diff = data.thisWeekTotalKm - data.lastWeekTotalKm
+        if abs(diff) < 0.1 { return "≈ same as last week" }
+        let pct = Int(abs(diff / data.lastWeekTotalKm) * 100)
+        return diff > 0 ? "↑\(pct)% vs last week" : "↓\(pct)% vs last week"
+    }
+
+    private var diffColor: Color {
+        data.thisWeekTotalKm >= data.lastWeekTotalKm ? .green : .orange
+    }
+
+    var body: some View {
+        CardContainer {
+            VStack(alignment: .leading, spacing: 12) {
+
+                // ── Header ──────────────────────────────────────────────
+                HStack(alignment: .firstTextBaseline) {
+                    Label("Distance", systemImage: "figure.walk")
+                        .font(.headline)
+                        .foregroundStyle(.teal)
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(String(format: "%.1f km this week", data.thisWeekTotalKm))
+                            .font(.subheadline.weight(.semibold))
+                        if !diffText.isEmpty {
+                            Text(diffText)
+                                .font(.caption2)
+                                .foregroundStyle(diffColor)
+                        }
+                    }
+                }
+
+                // ── Grouped bar chart (this week vs last week per day) ──
+                Chart(flatEntries) { entry in
+                    BarMark(
+                        x: .value("Day", entry.day),
+                        y: .value("km",  entry.km)
+                    )
+                    .foregroundStyle(entry.series == "This week"
+                                     ? Color.teal
+                                     : Color.gray.opacity(0.35))
+                    .position(by: .value("Week", entry.series))
+                    .cornerRadius(4)
+                }
+                .chartYAxis {
+                    AxisMarks(values: .automatic(desiredCount: 4)) { val in
+                        AxisGridLine()
+                        AxisValueLabel {
+                            if let km = val.as(Double.self) {
+                                Text(String(format: "%.0fkm", km))
+                                    .font(.caption2)
+                            }
+                        }
+                    }
+                }
+                .chartXAxis {
+                    AxisMarks { _ in AxisValueLabel() }
+                }
+                .frame(height: 150)
+
+                // ── Legend ─────────────────────────────────────────────
+                HStack(spacing: 16) {
+                    legendSwatch(.teal,               "This week")
+                    legendSwatch(.gray.opacity(0.45), "Last week")
+                }
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func legendSwatch(_ colour: Color, _ label: String) -> some View {
+        HStack(spacing: 5) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(colour)
+                .frame(width: 14, height: 8)
+            Text(label)
+        }
+    }
+}
+
+// MARK: - Activity Summary Card
+
+private struct ActivitySummaryCard: View {
+    let activities    : [ActivityWeekSummary]
+    let weekStartDate : Date
+
+    private var visibleActivities: [ActivityWeekSummary] {
+        activities.filter { $0.thisWeekSessions > 0 || $0.lastWeekSessions > 0 }
+    }
+
+    private var weekRangeLabel: String {
+        weekStartDate.formatted(.dateTime.month(.abbreviated).day()) + " – today"
+    }
+
+    var body: some View {
+        CardContainer {
+            VStack(alignment: .leading, spacing: 12) {
+
+                // ── Header ──────────────────────────────────────────────
+                HStack(alignment: .firstTextBaseline) {
+                    Label("Activity", systemImage: "figure.run")
+                        .font(.headline)
+                        .foregroundStyle(.orange)
+                    Spacer()
+                    Text(weekRangeLabel)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                if visibleActivities.isEmpty {
+                    Text("No workouts logged this week or last week.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .italic()
+                } else {
+                    ForEach(Array(visibleActivities.enumerated()), id: \.element.id) { idx, summary in
+                        if idx > 0 { Divider() }
+                        ActivityRow(summary: summary)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct ActivityRow: View {
+    let summary: ActivityWeekSummary
+
+    var body: some View {
+        HStack(spacing: 10) {
+
+            // ── Category icon ────────────────────────────────────────
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(summary.category.color.opacity(0.12))
+                    .frame(width: 38, height: 38)
+                Image(systemName: summary.category.systemImage)
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundStyle(summary.category.color)
+            }
+
+            // ── Name + stats ─────────────────────────────────────────
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(summary.category.rawValue)
+                        .font(.subheadline.weight(.medium))
+                    Spacer()
+                    // This-week headline
+                    if summary.thisWeekSessions > 0 {
+                        Text("\(summary.thisWeekSessions) × \(ActivityWeekSummary.durationLabel(summary.thisWeekMinutes))")
+                            .font(.caption.weight(.semibold))
+                    } else {
+                        Text("None this week")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+
+                // Dual progress bars + delta badge
+                HStack(spacing: 8) {
+                    dualBars
+                    Text(deltaLabel)
+                        .font(.caption2)
+                        .foregroundStyle(deltaColor)
+                        .lineLimit(1)
+                }
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    // Two stacked 5pt bars: coloured = this week, gray = last week
+    private var dualBars: some View {
+        let maxMin   = Double(max(summary.thisWeekMinutes, summary.lastWeekMinutes, 1))
+        let thisFrac = min(Double(summary.thisWeekMinutes) / maxMin, 1.0)
+        let lastFrac = min(Double(summary.lastWeekMinutes) / maxMin, 1.0)
+
+        return GeometryReader { geo in
+            let w = geo.size.width
+            VStack(spacing: 3) {
+                ZStack(alignment: .leading) {
+                    Capsule().fill(summary.category.color.opacity(0.12))
+                        .frame(width: w, height: 5)
+                    Capsule().fill(summary.category.color)
+                        .frame(width: w * thisFrac, height: 5)
+                }
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.secondary.opacity(0.12))
+                        .frame(width: w, height: 5)
+                    Capsule().fill(Color.secondary.opacity(0.35))
+                        .frame(width: w * lastFrac, height: 5)
+                }
+            }
+        }
+        .frame(height: 13)
+    }
+
+    private var deltaLabel: String {
+        if summary.lastWeekSessions == 0 {
+            return summary.thisWeekSessions > 0 ? "new ↑" : ""
+        }
+        if summary.lastWeekMinutes == 0 { return "" }
+        let diff = summary.thisWeekMinutes - summary.lastWeekMinutes
+        if abs(diff) < 5 { return "≈ last wk" }
+        let pct = Int(abs(Double(diff) / Double(summary.lastWeekMinutes)) * 100)
+        return diff > 0 ? "↑\(pct)% vs last wk" : "↓\(pct)% vs last wk"
+    }
+
+    private var deltaColor: Color {
+        let diff = summary.thisWeekMinutes - summary.lastWeekMinutes
+        if diff >  5 { return .green }
+        if diff < -5 { return .orange }
+        return .secondary
     }
 }
 

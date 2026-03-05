@@ -209,7 +209,13 @@ struct ContentView: View {
 
     /// Shared async implementation — used by both the button and pull-to-refresh.
     private func performFetch() async {
-        withAnimation { loadState = .loading }
+        // On the very first fetch (idle state) show the skeleton/placeholder cards
+        // so the layout doesn't jump. On subsequent refreshes (data already on screen)
+        // keep the existing data visible and silently swap in the new data when it
+        // arrives — the pull-to-refresh spinner provides all the visual feedback needed.
+        if !loadState.isLoaded {
+            withAnimation { loadState = .loading }
+        }
         let data = await MockDataService.shared.fetchDashboard(
             trainLineName: trainLineName,
             homeStation:   homeStation,

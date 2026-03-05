@@ -22,6 +22,12 @@ final class HealthService {
     private var heartRateType: HKQuantityType {
         HKQuantityType(.heartRate)
     }
+    private var distanceType: HKQuantityType {
+        HKQuantityType(.distanceWalkingRunning)
+    }
+    private var workoutType: HKWorkoutType {
+        HKObjectType.workoutType()
+    }
 
     // MARK: - Public API
 
@@ -32,25 +38,30 @@ final class HealthService {
         }
 
         do {
-            try await store.requestAuthorization(toShare: [], read: [sleepType, heartRateType])
+            try await store.requestAuthorization(
+                toShare: [],
+                read:    [sleepType, heartRateType, distanceType, workoutType]
+            )
         } catch {
             print("⚕️ HealthKit auth error: \(error) — using mock data")
             return makeMockData()
         }
 
-        // Fetch both concurrently.
-        async let sleepTask = fetchSleepRecords()
-        async let hrTask    = fetchHeartRateSamples()
-        let (sleepRecs, hrSamples) = await (sleepTask, hrTask)
+        // Fetch all three datasets concurrently.
+        async let sleepTask    = fetchSleepRecords()
+        async let hrTask       = fetchHeartRateSamples()
+        async let workoutTask  = fetchWorkoutData()
+        let (sleepRecs, hrSamples, workouts) = await (sleepTask, hrTask, workoutTask)
 
-        // Fall back to mock for whichever dataset returned empty
-        // (can happen if user denied only one permission).
-        let finalSleep = sleepRecs.isEmpty   ? makeSleepRecords()    : sleepRecs
-        let finalHR    = hrSamples.isEmpty   ? makeHeartRateSamples(): hrSamples
+        // Fall back to mock for sleep/HR if empty (permission may be denied for just one).
+        // Workout data is always used as-is — zero sessions is valid (user just hasn't logged any).
+        let finalSleep = sleepRecs.isEmpty  ? makeSleepRecords()     : sleepRecs
+        let finalHR    = hrSamples.isEmpty  ? makeHeartRateSamples() : hrSamples
 
         return HealthData(
             sleepRecords:   finalSleep,
-            heartRateStats: HeartRateStats(samples: finalHR)
+            heartRateStats: HeartRateStats(samples: finalHR),
+            workoutData:    workouts
         )
     }
 
@@ -231,7 +242,8 @@ final class HealthService {
 
     private func makeMockData() -> HealthData {
         HealthData(sleepRecords:   makeSleepRecords(),
-                   heartRateStats: HeartRateStats(samples: makeHeartRateSamples()))
+                   heartRateStats: HeartRateStats(samples: makeHeartRateSamples()),
+                   workoutData:    makeWorkoutData())
     }
 
     private func makeSleepRecords() -> [SleepRecord] {
@@ -284,5 +296,178 @@ final class HealthService {
                   d <= now else { return nil }
             return HeartRateSample(timestamp: d, bpm: max(40, bpm + Int.random(in: -3...3)))
         }
+    }
+
+    // MARK: - Workouts
+
+    private func fetchWorkoutData() async -> WorkoutData {
+        // Melbourne-timezone calendar with Monday as the first weekday.
+        // Must be a `let` so it's safe to capture in concurrent async-let tasks.
+        var _cal = Calendar(identifier: .gregorian)
+        _cal.timeZone    = TimeZone(identifier: "Australia/Melbourne")!
+        _cal.firstWeekday = 2   // Monday
+        let melbCal = _cal
+
+        let now           = Date()
+        // Monday midnight that opened the current ISO week (Melbourne time).
+        let weekComps     = melbCal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now)
+        let thisWeekStart = melbCal.date(from: weekComps)!
+        let lastWeekStart = melbCal.date(byAdding: .weekOfYear, value: -1, to: thisWeekStart)!
+
+        // Fetch distance and workouts for both weeks concurrently.
+        async let thisDistTask = fetchDailyDistances(from: thisWeekStart, to: now,              calendar: melbCal)
+        async let lastDistTask = fetchDailyDistances(from: lastWeekStart, to: thisWeekStart, calendar: melbCal)
+        async let thisWorkTask = fetchWorkouts(from: thisWeekStart, to: now)
+        async let lastWorkTask = fetchWorkouts(from: lastWeekStart, to: thisWeekStart)
+        let (thisDist, lastDist, thisWork, lastWork) = await (thisDistTask, lastDistTask, thisWorkTask, lastWorkTask)
+
+        // Build the 7-day distance array (Mon → Sun).
+        let days: [WeeklyDistanceDay] = (0..<7).map { i in
+            let dayDate = melbCal.date(byAdding: .day, value: i, to: thisWeekStart)!
+            return WeeklyDistanceDay(
+                weekdayIndex: i,
+                weekdayLabel: dayDate.formatted(.dateTime.weekday(.abbreviated)),
+                thisWeekKm:   thisDist[i] ?? 0,
+                lastWeekKm:   lastDist[i] ?? 0
+            )
+        }
+
+        let distanceData = WeeklyDistanceData(
+            days:            days,
+            thisWeekTotalKm: days.reduce(0) { $0 + $1.thisWeekKm },
+            lastWeekTotalKm: days.reduce(0) { $0 + $1.lastWeekKm },
+            weekStartDate:   thisWeekStart
+        )
+
+        let activities: [ActivityWeekSummary] = ActivityCategory.allCases.map { cat in
+            let thisFiltered = thisWork.filter { activityCategory(for: $0) == cat }
+            let lastFiltered = lastWork.filter { activityCategory(for: $0) == cat }
+            return ActivityWeekSummary(
+                category:         cat,
+                thisWeekMinutes:  Int(thisFiltered.reduce(0) { $0 + $1.duration } / 60),
+                thisWeekSessions: thisFiltered.count,
+                lastWeekMinutes:  Int(lastFiltered.reduce(0) { $0 + $1.duration } / 60),
+                lastWeekSessions: lastFiltered.count
+            )
+        }
+
+        return WorkoutData(weeklyDistance: distanceData, activities: activities)
+    }
+
+    /// Fetches cumulative walking/running distance per weekday-index (0=Mon…6=Sun)
+    /// for the given time window, using HealthKit's statistics collection so overlapping
+    /// sources (iPhone + Watch) are automatically deduplicated.
+    private func fetchDailyDistances(from start: Date, to end: Date,
+                                     calendar: Calendar) async -> [Int: Double] {
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end,
+                                                    options: .strictStartDate)
+        // Anchor daily buckets to midnight at the start of the window.
+        var anchorComps    = calendar.dateComponents([.year, .month, .day], from: start)
+        anchorComps.hour   = 0; anchorComps.minute = 0; anchorComps.second = 0
+        let anchor         = calendar.date(from: anchorComps) ?? start
+
+        return await withCheckedContinuation { cont in
+            let q = HKStatisticsCollectionQuery(
+                quantityType:            distanceType,
+                quantitySamplePredicate: predicate,
+                options:                 .cumulativeSum,
+                anchorDate:              anchor,
+                intervalComponents:      DateComponents(day: 1)
+            )
+            q.initialResultsHandler = { _, results, error in
+                if let error { print("⚕️ Distance stats error: \(error)") }
+                guard let results else { cont.resume(returning: [:]); return }
+
+                var daily: [Int: Double] = [:]
+                results.enumerateStatistics(from: start, to: end) { stats, _ in
+                    guard let sum = stats.sumQuantity() else { return }
+                    let km      = sum.doubleValue(for: HKUnit.meterUnit(with: .kilo))
+                    let weekday = calendar.component(.weekday, from: stats.startDate)
+                    // weekday: 1=Sun 2=Mon … 7=Sat  →  index: 0=Mon … 6=Sun
+                    daily[(weekday - 2 + 7) % 7] = km
+                }
+                cont.resume(returning: daily)
+            }
+            store.execute(q)
+        }
+    }
+
+    /// Returns all HKWorkout samples in the given window, sorted by start date.
+    private func fetchWorkouts(from start: Date, to end: Date) async -> [HKWorkout] {
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end,
+                                                    options: .strictStartDate)
+        return await withCheckedContinuation { cont in
+            let q = HKSampleQuery(sampleType:    workoutType,
+                                  predicate:     predicate,
+                                  limit:         HKObjectQueryNoLimit,
+                                  sortDescriptors: nil) { _, results, error in
+                if let error { print("⚕️ Workout query error: \(error)") }
+                cont.resume(returning: (results as? [HKWorkout]) ?? [])
+            }
+            store.execute(q)
+        }
+    }
+
+    /// Maps a HealthKit workout to one of the four activity categories, or nil if uncategorised.
+    private func activityCategory(for workout: HKWorkout) -> ActivityCategory? {
+        switch workout.workoutActivityType {
+        case .walking, .running, .hiking:
+            return .walking
+        case .coreTraining, .yoga, .pilates, .flexibility, .mindAndBody:
+            return .core
+        case .traditionalStrengthTraining, .functionalStrengthTraining:
+            return .strength
+        case .highIntensityIntervalTraining, .crossTraining, .mixedCardio,
+             .elliptical, .stairClimbing, .cycling, .rowing:
+            return .gym
+        default:
+            return nil
+        }
+    }
+
+    // MARK: - Mock workout data (simulator / HealthKit unavailable)
+
+    private func makeWorkoutData() -> WorkoutData {
+        var melbCal = Calendar(identifier: .gregorian)
+        melbCal.timeZone    = TimeZone(identifier: "Australia/Melbourne")!
+        melbCal.firstWeekday = 2
+
+        let now           = Date()
+        let weekComps     = melbCal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now)
+        let thisWeekStart = melbCal.date(from: weekComps)!
+
+        // Mock daily km: Mon … Sun
+        let thisKm: [Double] = [4.2, 2.8, 5.5, 3.1, 0.0, 0.0, 0.0]
+        let lastKm: [Double] = [3.0, 0.0, 4.5, 2.2, 5.8, 6.2, 1.5]
+
+        let days: [WeeklyDistanceDay] = (0..<7).map { i in
+            let d = melbCal.date(byAdding: .day, value: i, to: thisWeekStart)!
+            return WeeklyDistanceDay(
+                weekdayIndex: i,
+                weekdayLabel: d.formatted(.dateTime.weekday(.abbreviated)),
+                thisWeekKm:   thisKm[i],
+                lastWeekKm:   lastKm[i]
+            )
+        }
+
+        let distData = WeeklyDistanceData(
+            days:            days,
+            thisWeekTotalKm: thisKm.reduce(0, +),
+            lastWeekTotalKm: lastKm.reduce(0, +),
+            weekStartDate:   thisWeekStart
+        )
+
+        let activities: [ActivityWeekSummary] = [
+            ActivityWeekSummary(category: .walking,  thisWeekMinutes: 135, thisWeekSessions: 4,
+                                                     lastWeekMinutes: 165, lastWeekSessions: 4),
+            ActivityWeekSummary(category: .core,     thisWeekMinutes:  60, thisWeekSessions: 2,
+                                                     lastWeekMinutes:  90, lastWeekSessions: 3),
+            ActivityWeekSummary(category: .strength, thisWeekMinutes: 120, thisWeekSessions: 2,
+                                                     lastWeekMinutes: 165, lastWeekSessions: 3),
+            ActivityWeekSummary(category: .gym,      thisWeekMinutes:  45, thisWeekSessions: 1,
+                                                     lastWeekMinutes:  90, lastWeekSessions: 2),
+        ]
+
+        return WorkoutData(weeklyDistance: distData, activities: activities)
     }
 }
