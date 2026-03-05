@@ -311,7 +311,7 @@ struct CalendarCard: View {
     var body: some View {
         CardContainer {
             VStack(alignment: .leading, spacing: 12) {
-                Label("Next 5 Days", systemImage: "calendar")
+                Label("Next 2 Days", systemImage: "calendar")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
 
