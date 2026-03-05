@@ -190,8 +190,9 @@ struct ContentView: View {
     private var cardsStack: some View {
         VStack(spacing: 20) {
             WeatherCard(weather: displayData.weather)
-            CalendarCard(events: displayData.upcomingEvents)
             TrainCard(train: displayData.trainInfo)
+            CalendarCard(events: displayData.upcomingEvents)
+            
         }
         .redacted(reason: loadState.shouldRedact ? .placeholder : [])
         .opacity(loadState.isIdle ? 0.55 : 1.0)
