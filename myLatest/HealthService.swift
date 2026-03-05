@@ -34,7 +34,9 @@ final class HealthService {
     func fetchHealthData() async -> HealthData {
         guard HKHealthStore.isHealthDataAvailable() else {
             print("⚕️ HealthKit not available — using mock data")
-            return makeMockData()
+            let mock = makeMockData()
+            print(debugSummary(mock, source: "MOCK"))
+            return mock
         }
 
         do {
@@ -44,7 +46,9 @@ final class HealthService {
             )
         } catch {
             print("⚕️ HealthKit auth error: \(error) — using mock data")
-            return makeMockData()
+            let mock = makeMockData()
+            print(debugSummary(mock, source: "MOCK"))
+            return mock
         }
 
         // Fetch all three datasets concurrently.
@@ -58,11 +62,13 @@ final class HealthService {
         let finalSleep = sleepRecs.isEmpty  ? makeSleepRecords()     : sleepRecs
         let finalHR    = hrSamples.isEmpty  ? makeHeartRateSamples() : hrSamples
 
-        return HealthData(
+        let result = HealthData(
             sleepRecords:   finalSleep,
             heartRateStats: HeartRateStats(samples: finalHR),
             workoutData:    workouts
         )
+        print(debugSummary(result, source: "LIVE"))
+        return result
     }
 
     // MARK: - Sleep
@@ -469,5 +475,89 @@ final class HealthService {
         ]
 
         return WorkoutData(weeklyDistance: distData, activities: activities)
+    }
+
+    // MARK: - Debug summary
+
+    /// Builds a human-readable console summary of all data currently shown in the Health tab.
+    func debugSummary(_ data: HealthData, source: String) -> String {
+        var lines: [String] = []
+        let now = Date()
+        let ts  = now.formatted(.dateTime.day().month(.abbreviated).year().hour().minute())
+
+        lines.append("")
+        lines.append("╔══════════════════════════════════════════════════")
+        lines.append("║  Health Tab — Data Summary  [\(source)]")
+        lines.append("║  Generated: \(ts)")
+        lines.append("╠══════════════════════════════════════════════════")
+
+        // ── Distance ────────────────────────────────────────────────────
+        let wd = data.workoutData.weeklyDistance
+        let wStart = wd.weekStartDate.formatted(.dateTime.day().month(.abbreviated))
+        lines.append("║")
+        lines.append("║  📍 DISTANCE   (week from \(wStart))")
+        lines.append("║  ─────────────────────────────────────")
+        for day in wd.days {
+            let thisStr = String(format: "%.2f km", day.thisWeekKm)
+            let lastStr = String(format: "%.2f km", day.lastWeekKm)
+            let flag    = day.thisWeekKm > 0 || day.lastWeekKm > 0 ? "" : "  (rest)"
+            lines.append("║   \(day.weekdayLabel.padding(toLength: 3, withPad: " ", startingAt: 0))  this wk: \(thisStr.padding(toLength: 8, withPad: " ", startingAt: 0))  last wk: \(lastStr)\(flag)")
+        }
+        let distDiff   = wd.thisWeekTotalKm - wd.lastWeekTotalKm
+        let distPctStr = wd.lastWeekTotalKm > 0
+            ? String(format: " (%+.0f%%)", distDiff / wd.lastWeekTotalKm * 100)
+            : ""
+        lines.append("║   ─────────────────────────────────────")
+        lines.append("║   Total  this wk: \(String(format: "%.2f km", wd.thisWeekTotalKm))   last wk: \(String(format: "%.2f km", wd.lastWeekTotalKm))\(distPctStr)")
+
+        // ── Activity ─────────────────────────────────────────────────────
+        lines.append("║")
+        lines.append("║  🏃 ACTIVITY")
+        lines.append("║  ─────────────────────────────────────")
+        for act in data.workoutData.activities {
+            let name     = act.category.rawValue.padding(toLength: 10, withPad: " ", startingAt: 0)
+            let thisSess = "\(act.thisWeekSessions)×\(ActivityWeekSummary.durationLabel(act.thisWeekMinutes))"
+            let lastSess = "\(act.lastWeekSessions)×\(ActivityWeekSummary.durationLabel(act.lastWeekMinutes))"
+            var delta = ""
+            if act.lastWeekMinutes > 0 {
+                let pct = Int((Double(act.thisWeekMinutes - act.lastWeekMinutes) / Double(act.lastWeekMinutes)) * 100)
+                delta = String(format: "  (%+d%%)", pct)
+            } else if act.thisWeekSessions > 0 {
+                delta = "  (new)"
+            }
+            let thisStr = thisSess.padding(toLength: 14, withPad: " ", startingAt: 0)
+            lines.append("║   \(name)  this wk: \(thisStr) last wk: \(lastSess)\(delta)")
+        }
+
+        // ── Sleep ────────────────────────────────────────────────────────
+        let sleepTotal = data.sleepRecords.reduce(0) { $0 + $1.totalMinutes }
+        let sleepAvgH  = data.sleepRecords.isEmpty ? 0.0
+                         : Double(sleepTotal) / Double(data.sleepRecords.count) / 60.0
+        lines.append("║")
+        lines.append("║  😴 SLEEP   (7-day avg: \(String(format: "%.1fh", sleepAvgH)))")
+        lines.append("║  ─────────────────────────────────────")
+        for rec in data.sleepRecords {
+            let dateStr  = rec.date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
+            let stageStr = "deep \(rec.deepMinutes)m  REM \(rec.remMinutes)m  core \(rec.coreMinutes)m"
+            lines.append("║   \(dateStr.padding(toLength: 12, withPad: " ", startingAt: 0))  \(rec.durationLabel.padding(toLength: 8, withPad: " ", startingAt: 0))  [\(stageStr)]")
+        }
+
+        // ── Heart Rate ───────────────────────────────────────────────────
+        let hr = data.heartRateStats
+        lines.append("║")
+        lines.append("║  ❤️  HEART RATE   (today)")
+        lines.append("║  ─────────────────────────────────────")
+        lines.append("║   Latest: \(hr.latest.map { "\($0) BPM" } ?? "n/a")")
+        lines.append("║   Min: \(hr.min) BPM   Avg: \(hr.average) BPM   Max: \(hr.max) BPM")
+        lines.append("║   Samples: \(hr.samples.count)")
+
+        lines.append("╚══════════════════════════════════════════════════")
+        lines.append("")
+        return lines.joined(separator: "\n")
+    }
+
+    /// Returns a formatted text summary suitable for Claude AI health analysis.
+    func summaryText(for data: HealthData) -> String {
+        debugSummary(data, source: "LIVE")
     }
 }

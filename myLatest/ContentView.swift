@@ -710,6 +710,8 @@ struct SettingsView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(WeatherStationStore.self) private var stationStore
+    @AppStorage("claudeApiKey") private var claudeApiKey: String = ""
+    @AppStorage("userAge")      private var userAge:      String = ""
 
     var body: some View {
         NavigationStack {
@@ -742,6 +744,33 @@ struct SettingsView: View {
                             .padding(.top, 2)
                     }
                     .font(.footnote)
+                }
+
+                // ── Profile ──────────────────────────────────────────────
+                Section {
+                    LabeledContent("Age") {
+                        TextField("e.g. 35", text: $userAge)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                    }
+                } header: {
+                    Text("Profile")
+                } footer: {
+                    Text("Used to personalise your AI health analysis.")
+                }
+
+                // ── Claude AI ─────────────────────────────────────────────
+                Section {
+                    LabeledContent("API Key") {
+                        TextField("sk-ant-...", text: $claudeApiKey)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                            .multilineTextAlignment(.trailing)
+                    }
+                } header: {
+                    Text("Claude AI")
+                } footer: {
+                    Text("Your Anthropic API key for health analysis. Get one at console.anthropic.com.")
                 }
 
                 // ── Weather Stations ─────────────────────────────────────

@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		BA529B712F57B70000D5B146 /* HealthKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BA529B702F57B70000D5B146 /* HealthKit.framework */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		BA529B562F57A70000D5B145 /* myLatest.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = myLatest.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BA529B702F57B70000D5B146 /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
@@ -18,10 +22,6 @@
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
-
-/* Begin PBXBuildFile section */
-		BA529B712F57B70000D5B146 /* HealthKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BA529B702F57B70000D5B146 /* HealthKit.framework */; };
-/* End PBXBuildFile section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		BA529B532F57A70000D5B145 /* Frameworks */ = {
@@ -44,20 +44,20 @@
 			);
 			sourceTree = "<group>";
 		};
-		BA529B722F57B70000D5B146 /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-				BA529B702F57B70000D5B146 /* HealthKit.framework */,
-			);
-			name = Frameworks;
-			sourceTree = "<group>";
-		};
 		BA529B572F57A70000D5B145 /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				BA529B562F57A70000D5B145 /* myLatest.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		BA529B722F57B70000D5B146 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				BA529B702F57B70000D5B146 /* HealthKit.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */

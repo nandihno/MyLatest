@@ -15,6 +15,12 @@ struct HealthView: View {
     @State private var healthData: HealthData?
     @State private var isLoading = false
 
+    @AppStorage("claudeApiKey") private var claudeApiKey: String = ""
+    @AppStorage("userAge")      private var userAge:      String = ""
+    @State private var isAnalysing    = false
+    @State private var analysisResult: String? = nil
+    @State private var showAnalysis   = false
+
     var body: some View {
         NavigationStack {
             Group {
@@ -26,6 +32,7 @@ struct HealthView: View {
             }
             .navigationTitle("Health")
             .navigationBarTitleDisplayMode(.large)
+            .sheet(isPresented: $showAnalysis) { analysisSheet }
         }
         .task { await load() }
     }
@@ -51,6 +58,7 @@ struct HealthView: View {
                                     weekStartDate: healthData!.workoutData.weeklyDistance.weekStartDate)
                 SleepCard(records: healthData!.sleepRecords)
                 HeartRateCard(stats: healthData!.heartRateStats)
+                claudeAnalyseCard
             }
             .padding()
         }
@@ -68,6 +76,124 @@ struct HealthView: View {
         }
         healthData = await HealthService.shared.fetchHealthData()
         isLoading = false
+    }
+
+    // MARK: Claude Analysis
+
+    private var claudeAnalyseCard: some View {
+        CardContainer {
+            VStack(alignment: .leading, spacing: 12) {
+                Label("AI Health Analysis", systemImage: "brain.head.profile")
+                    .font(.headline)
+                    .foregroundStyle(.purple)
+
+                if claudeApiKey.isEmpty {
+                    Text("Set your Claude API key in Settings to enable AI analysis.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Button(action: analyseWithClaude) {
+                    Label("Analyse with Claude", systemImage: "sparkles")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(claudeApiKey.isEmpty ? Color.purple.opacity(0.35) : Color.purple)
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+                .disabled(claudeApiKey.isEmpty)
+            }
+        }
+    }
+
+    private var analysisSheet: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    if isAnalysing {
+                        VStack(spacing: 20) {
+                            ProgressView().scaleEffect(1.5)
+                            Text("Analysing your health data…")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 60)
+                    } else if let result = analysisResult {
+                        ForEach(parsedSections(result)) { section in
+                            AnalysisSectionCard(title: section.title, content: section.body)
+                        }
+                    }
+                }
+                .padding()
+            }
+            .navigationTitle("Health Analysis")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { showAnalysis = false }
+                }
+            }
+        }
+    }
+
+    private struct ParsedSection: Identifiable {
+        let id   = UUID()
+        let title: String
+        let body:  String
+    }
+
+    private func parsedSections(_ text: String) -> [ParsedSection] {
+        var sections: [ParsedSection] = []
+        var currentTitle = ""
+        var currentLines: [String] = []
+
+        for line in text.components(separatedBy: "\n") {
+            if line.hasPrefix("## ") {
+                let body = currentLines
+                    .joined(separator: "\n")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                if !currentTitle.isEmpty || !body.isEmpty {
+                    sections.append(ParsedSection(title: currentTitle, body: body))
+                }
+                currentTitle = String(line.dropFirst(3))
+                currentLines = []
+            } else {
+                currentLines.append(line)
+            }
+        }
+        // Flush last section
+        let lastBody = currentLines
+            .joined(separator: "\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if !currentTitle.isEmpty || !lastBody.isEmpty {
+            sections.append(ParsedSection(title: currentTitle, body: lastBody))
+        }
+        // Fallback: if Claude returned no ## headers, show as single card
+        return sections.isEmpty ? [ParsedSection(title: "", body: text)] : sections
+    }
+
+    private func analyseWithClaude() {
+        guard let data = healthData else { return }
+        analysisResult = nil
+        isAnalysing    = true
+        showAnalysis   = true
+
+        Task {
+            let summary = HealthService.shared.summaryText(for: data)
+            do {
+                let result = try await ClaudeService.analyseHealthData(
+                    summary: summary,
+                    age:     userAge,
+                    apiKey:  claudeApiKey
+                )
+                analysisResult = result
+            } catch {
+                analysisResult = "Error: \(error.localizedDescription)"
+            }
+            isAnalysing = false
+        }
     }
 }
 
@@ -586,6 +712,36 @@ private struct ActivityRow: View {
         if diff >  5 { return .green }
         if diff < -5 { return .orange }
         return .secondary
+    }
+}
+
+// MARK: - Analysis section card
+
+private struct AnalysisSectionCard: View {
+    let title:   String
+    let content: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if !title.isEmpty {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+            }
+            if let attributed = try? AttributedString(markdown: content) {
+                Text(attributed)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text(content)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
     }
 }
 
