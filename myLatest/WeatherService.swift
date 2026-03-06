@@ -10,6 +10,7 @@ import CoreLocation
 
 enum WeatherError: LocalizedError {
     case locationDenied
+    case locationUnavailable
     case noStations
     case network(Error)
     case decoding(Error)
@@ -17,6 +18,7 @@ enum WeatherError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .locationDenied:    return "Location access was denied."
+        case .locationUnavailable:return "Current device location is unavailable."
         case .noStations:        return "No weather stations available."
         case .network(let e):    return "Network error: \(e.localizedDescription)"
         case .decoding(let e):   return "Data error: \(e.localizedDescription)"
@@ -31,6 +33,7 @@ enum WeatherError: LocalizedError {
 // CLLocationManagerDelegate callbacks, which are always dispatched on the
 // main thread by the system.
 
+@MainActor
 final class LocationManager: NSObject {
     private let clManager = CLLocationManager()
     private var continuation: CheckedContinuation<CLLocation, Error>?
@@ -38,23 +41,37 @@ final class LocationManager: NSObject {
     override init() {
         super.init()
         clManager.delegate = self
-        clManager.desiredAccuracy = kCLLocationAccuracyKilometer
+        clManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
     }
 
     /// Requests a one-shot location fix.  Asks for permission first if needed.
     func currentLocation() async throws -> CLLocation {
-        try await withCheckedThrowingContinuation { [weak self] cont in
+        guard CLLocationManager.locationServicesEnabled() else {
+            throw WeatherError.locationUnavailable
+        }
+
+        return try await withCheckedThrowingContinuation { [weak self] (cont: CheckedContinuation<CLLocation, Error>) in
             guard let self else {
-                cont.resume(throwing: WeatherError.noStations)
+                cont.resume(throwing: WeatherError.locationUnavailable)
                 return
             }
+
+            if let existing = self.continuation {
+                existing.resume(throwing: WeatherError.locationUnavailable)
+                self.continuation = nil
+            }
+
             self.continuation = cont
             switch clManager.authorizationStatus {
             case .notDetermined:
                 clManager.requestWhenInUseAuthorization()
                 // locationManagerDidChangeAuthorization will call requestLocation()
             case .authorizedWhenInUse, .authorizedAlways:
-                clManager.requestLocation()
+                if let cached = self.bestAvailableLocation() {
+                    self.deliver(.success(cached))
+                } else {
+                    clManager.requestLocation()
+                }
             case .denied, .restricted:
                 self.continuation = nil
                 cont.resume(throwing: WeatherError.locationDenied)
@@ -62,6 +79,16 @@ final class LocationManager: NSObject {
                 clManager.requestWhenInUseAuthorization()
             }
         }
+    }
+
+    private func bestAvailableLocation() -> CLLocation? {
+        guard let location = clManager.location else { return nil }
+
+        let age = abs(location.timestamp.timeIntervalSinceNow)
+        let isRecentEnough = age < 300
+        let hasUsableAccuracy = location.horizontalAccuracy >= 0
+
+        return (isRecentEnough && hasUsableAccuracy) ? location : nil
     }
 
     private func deliver(_ result: Result<CLLocation, Error>) {
@@ -75,8 +102,12 @@ final class LocationManager: NSObject {
 
 extension LocationManager: @preconcurrency CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let loc = locations.first else { return }
-        deliver(.success(loc))
+        let validLocations = locations.filter { $0.horizontalAccuracy >= 0 }
+        if let loc = validLocations.min(by: { $0.horizontalAccuracy < $1.horizontalAccuracy }) {
+            deliver(.success(loc))
+        } else {
+            deliver(.failure(WeatherError.locationUnavailable))
+        }
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
@@ -86,7 +117,11 @@ extension LocationManager: @preconcurrency CLLocationManagerDelegate {
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         switch manager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
-            manager.requestLocation()
+            if let cached = bestAvailableLocation() {
+                deliver(.success(cached))
+            } else {
+                manager.requestLocation()
+            }
         case .denied, .restricted:
             deliver(.failure(WeatherError.locationDenied))
         default:
