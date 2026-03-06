@@ -1,0 +1,1613 @@
+[
+  {
+    "state": "VIC",
+    "title": "Melbourne (Olympic Park)",
+    "url": "https://www.bom.gov.au/fwo/IDV60901/IDV60901.95936.json",
+    "lat": -37.8,
+    "lon": 145
+  },
+  {
+    "state": "VIC",
+    "title": "Melbourne Airport",
+    "url": "https://www.bom.gov.au/fwo/IDV60901/IDV60901.94866.json",
+    "lat": -37.7,
+    "lon": 144.8
+  },
+  {
+    "state": "VIC",
+    "title": "Avalon",
+    "url": "https://www.bom.gov.au/fwo/IDV60901/IDV60901.94854.json",
+    "lat": -38,
+    "lon": 144.5
+  },
+  {
+    "state": "VIC",
+    "title": "Cerberus",
+    "url": "https://www.bom.gov.au/fwo/IDV60901/IDV60901.94898.json",
+    "lat": -38.4,
+    "lon": 145.2
+  },
+  {
+    "state": "VIC",
+    "title": "Coldstream",
+    "url": "https://www.bom.gov.au/fwo/IDV60901/IDV60901.94864.json",
+    "lat": -37.7,
+    "lon": 145.4
+  },
+  {
+    "state": "VIC",
+    "title": "Essendon Airport",
+    "url": "https://www.bom.gov.au/fwo/IDV60901/IDV60901.95866.json",
+    "lat": -37.7,
+    "lon": 144.9
+  },
+  {
+    "state": "VIC",
+    "title": "Fawkner Beacon",
+    "url": "https://www.bom.gov.au/fwo/IDV60901/IDV60901.95872.json",
+    "lat": -37.9,
+    "lon": 144.9
+  },
+  {
+    "state": "VIC",
+    "title": "Ferny Creek",
+    "url": "https://www.bom.gov.au/fwo/IDV60901/IDV60901.94872.json",
+    "lat": -37.9,
+    "lon": 145.3
+  },
+  {
+    "state": "VIC",
+    "title": "Frankston (Ballam Park)",
+    "url": "https://www.bom.gov.au/fwo/IDV60901/IDV60901.94876.json",
+    "lat": -38.2,
+    "lon": 145.2
+  },
+  {
+    "state": "VIC",
+    "title": "Frankston Beach",
+    "url": "https://www.bom.gov.au/fwo/IDV60901/IDV60901.94871.json",
+    "lat": -38.1,
+    "lon": 145.1
+  },
+  {
+    "state": "VIC",
+    "title": "Geelong Racecourse",
+    "url": "https://www.bom.gov.au/fwo/IDV60901/IDV60901.94857.json",
+    "lat": -38.2,
+    "lon": 144.4
+  },
+  {
+    "state": "VIC",
+    "title": "Laverton",
+    "url": "https://www.bom.gov.au/fwo/IDV60901/IDV60901.94865.json",
+    "lat": -37.9,
+    "lon": 144.8
+  },
+  {
+    "state": "VIC",
+    "title": "Moorabbin Airport",
+    "url": "https://www.bom.gov.au/fwo/IDV60901/IDV60901.94870.json",
+    "lat": -38,
+    "lon": 145.1
+  },
+  {
+    "state": "VIC",
+    "title": "Point Cook",
+    "url": "https://www.bom.gov.au/fwo/IDV60901/IDV60901.95941.json",
+    "lat": -37.9,
+    "lon": 144.8
+  },
+  {
+    "state": "VIC",
+    "title": "Point Wilson",
+    "url": "https://www.bom.gov.au/fwo/IDV60901/IDV60901.94847.json",
+    "lat": -38.1,
+    "lon": 144.5
+  },
+  {
+    "state": "VIC",
+    "title": "Rhyll",
+    "url": "https://www.bom.gov.au/fwo/IDV60901/IDV60901.94892.json",
+    "lat": -38.5,
+    "lon": 145.3
+  },
+  {
+    "state": "VIC",
+    "title": "Scoresby",
+    "url": "https://www.bom.gov.au/fwo/IDV60901/IDV60901.95867.json",
+    "lat": -37.9,
+    "lon": 145.3
+  },
+  {
+    "state": "VIC",
+    "title": "She Oaks",
+    "url": "https://www.bom.gov.au/fwo/IDV60901/IDV60901.94863.json",
+    "lat": -37.9,
+    "lon": 144.1
+  },
+  {
+    "state": "VIC",
+    "title": "South Channel Island",
+    "url": "https://www.bom.gov.au/fwo/IDV60901/IDV60901.94853.json",
+    "lat": -38.3,
+    "lon": 144.8
+  },
+  {
+    "state": "VIC",
+    "title": "St Kilda Harbour RMYS",
+    "url": "https://www.bom.gov.au/fwo/IDV60901/IDV60901.95864.json",
+    "lat": -37.9,
+    "lon": 145
+  },
+  {
+    "state": "VIC",
+    "title": "Viewbank",
+    "url": "https://www.bom.gov.au/fwo/IDV60901/IDV60901.95874.json",
+    "lat": -37.7,
+    "lon": 145.1
+  },
+  {
+      "state": "QLD",
+      "title": "Brisbane",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.94576.json",
+      "lat": -27.5,
+      "lon": 153
+    },
+    {
+      "state": "QLD",
+      "title": "Brisbane Airport",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.94578.json",
+      "lat": -27.4,
+      "lon": 153.1
+    },
+    {
+      "state": "QLD",
+      "title": "Amberley",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.94568.json",
+      "lat": -27.6,
+      "lon": 152.7
+    },
+    {
+      "state": "QLD",
+      "title": "Archerfield",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.94575.json",
+      "lat": -27.6,
+      "lon": 153
+    },
+    {
+      "state": "QLD",
+      "title": "Banana Bank",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.94591.json",
+      "lat": -27.5,
+      "lon": 153.3
+    },
+    {
+      "state": "QLD",
+      "title": "Beerburrum",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.95566.json",
+      "lat": -27,
+      "lon": 153
+    },
+    {
+      "state": "QLD",
+      "title": "Beaudesert AWS",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.95575.json",
+      "lat": -28,
+      "lon": 153
+    },
+    {
+      "state": "QLD",
+      "title": "Canungra (Defence)",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.94418.json",
+      "lat": -28,
+      "lon": 153.2
+    },
+    {
+      "state": "QLD",
+      "title": "Cape Moreton",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.94594.json",
+      "lat": -27,
+      "lon": 153.5
+    },
+    {
+      "state": "QLD",
+      "title": "Coolangatta",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.94592.json",
+      "lat": -28.2,
+      "lon": 153.5
+    },
+    {
+      "state": "QLD",
+      "title": "Double Island  Point",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.94584.json",
+      "lat": -25.9,
+      "lon": 153.2
+    },
+    {
+      "state": "QLD",
+      "title": "Gatton",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.94562.json",
+      "lat": -27.5,
+      "lon": 152.3
+    },
+    {
+      "state": "QLD",
+      "title": "Gold Coast Seaway",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.94580.json",
+      "lat": -27.9,
+      "lon": 153.4
+    },
+    {
+      "state": "QLD",
+      "title": "Greenbank (Defence)",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.94419.json",
+      "lat": -27.7,
+      "lon": 153
+    },
+    {
+      "state": "QLD",
+      "title": "Gympie",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.94566.json",
+      "lat": -26.2,
+      "lon": 152.6
+    },
+    {
+      "state": "QLD",
+      "title": "Hope Banks Beacon",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.99497.json",
+      "lat": -27.4,
+      "lon": 153.3
+    },
+    {
+      "state": "QLD",
+      "title": "Inner Beacon",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.94590.json",
+      "lat": -27.3,
+      "lon": 153.2
+    },
+    {
+      "state": "QLD",
+      "title": "Kingaroy",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.94549.json",
+      "lat": -26.6,
+      "lon": 151.8
+    },
+    {
+      "state": "QLD",
+      "title": "Nambour",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.95572.json",
+      "lat": -26.6,
+      "lon": 152.9
+    },
+    {
+      "state": "QLD",
+      "title": "North West 10 Beacon",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.99496.json",
+      "lat": -27,
+      "lon": 153.2
+    },
+    {
+      "state": "QLD",
+      "title": "Oakey",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.94552.json",
+      "lat": -27.4,
+      "lon": 151.7
+    },
+    {
+      "state": "QLD",
+      "title": "Point Lookout",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.94593.json",
+      "lat": -27.4,
+      "lon": 153.5
+    },
+    {
+      "state": "QLD",
+      "title": "Redland (Alexandra Hills)",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.94561.json",
+      "lat": -27.5,
+      "lon": 153.2
+    },
+    {
+      "state": "QLD",
+      "title": "Sunshine Coast Airport",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.94569.json",
+      "lat": -26.6,
+      "lon": 153.1
+    },
+    {
+      "state": "QLD",
+      "title": "Tewantin",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.94570.json",
+      "lat": -26.4,
+      "lon": 153
+    },
+    {
+      "state": "QLD",
+      "title": "Tin Can Bay (Defence)",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.94420.json",
+      "lat": -25.9,
+      "lon": 153
+    },
+    {
+      "state": "QLD",
+      "title": "Toowoomba",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.95551.json",
+      "lat": -27.5,
+      "lon": 151.9
+    },
+    {
+      "state": "QLD",
+      "title": "Warwick",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.94555.json",
+      "lat": -28.2,
+      "lon": 152.1
+    },
+    {
+      "state": "QLD",
+      "title": "Wellcamp Airport",
+      "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.99435.json",
+      "lat": -27.6,
+      "lon": 151.8
+    },
+    {
+        "state": "NSW",
+        "title": "Sydney - Observatory Hill",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.94768.json",
+        "lat": -33.9,
+        "lon": 151.2
+      },
+      {
+        "state": "NSW",
+        "title": "Sydney Airport",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.94767.json",
+        "lat": -33.9,
+        "lon": 151.2
+      },
+      {
+        "state": "NSW",
+        "title": "Sydney Harbour",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.95766.json",
+        "lat": -33.8,
+        "lon": 151.3
+      },
+      {
+        "state": "NSW",
+        "title": "Sydney Olympic Park",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.95765.json",
+        "lat": -33.8,
+        "lon": 151.1
+      },
+      {
+        "state": "NSW",
+        "title": "Badgerys Creek",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.94752.json",
+        "lat": -33.9,
+        "lon": 150.7
+      },
+      {
+        "state": "NSW",
+        "title": "Bankstown",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.94765.json",
+        "lat": -33.9,
+        "lon": 151
+      },
+      {
+        "state": "NSW",
+        "title": "Bellambi",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.94749.json",
+        "lat": -34.4,
+        "lon": 150.9
+      },
+      {
+        "state": "NSW",
+        "title": "Camden",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.94755.json",
+        "lat": -34,
+        "lon": 150.7
+      },
+      {
+        "state": "NSW",
+        "title": "Campbelltown",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.94757.json",
+        "lat": -34.1,
+        "lon": 150.8
+      },
+      {
+        "state": "NSW",
+        "title": "Canterbury",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.94766.json",
+        "lat": -33.9,
+        "lon": 151.1
+      },
+      {
+        "state": "NSW",
+        "title": "Fort Denison",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.94769.json",
+        "lat": -33.9,
+        "lon": 151.2
+      },
+      {
+        "state": "NSW",
+        "title": "Gosford",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.94782.json",
+        "lat": -33.4,
+        "lon": 151.4
+      },
+      {
+        "state": "NSW",
+        "title": "Holsworthy",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.95761.json",
+        "lat": -34,
+        "lon": 150.9
+      },
+      {
+        "state": "NSW",
+        "title": "Holsworthy (Defence)",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.95684.json",
+        "lat": -34.1,
+        "lon": 150.9
+      },
+      {
+        "state": "NSW",
+        "title": "Horsley Park",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.94760.json",
+        "lat": -33.9,
+        "lon": 150.9
+      },
+      {
+        "state": "NSW",
+        "title": "Katoomba",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.94744.json",
+        "lat": -33.7,
+        "lon": 150.3
+      },
+      {
+        "state": "NSW",
+        "title": "Kurnell",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.95756.json",
+        "lat": -34,
+        "lon": 151.2
+      },
+      {
+        "state": "NSW",
+        "title": "Lake Macquarie - Cooranbong",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.95767.json",
+        "lat": -33.1,
+        "lon": 151.5
+      },
+      {
+        "state": "NSW",
+        "title": "Little Bay",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.94780.json",
+        "lat": -34,
+        "lon": 151.3
+      },
+      {
+        "state": "NSW",
+        "title": "Lucas Heights (ANSTO)",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.95757.json",
+        "lat": -34.1,
+        "lon": 151
+      },
+      {
+        "state": "NSW",
+        "title": "Mangrove Mountain",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.95774.json",
+        "lat": -33.3,
+        "lon": 151.2
+      },
+      {
+        "state": "NSW",
+        "title": "Mount Boyce",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.94743.json",
+        "lat": -33.6,
+        "lon": 150.3
+      },
+      {
+        "state": "NSW",
+        "title": "Newcastle Nobbys",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.94774.json",
+        "lat": -32.9,
+        "lon": 151.8
+      },
+      {
+        "state": "NSW",
+        "title": "Norah Head",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.95770.json",
+        "lat": -33.3,
+        "lon": 151.6
+      },
+      {
+        "state": "NSW",
+        "title": "North Head",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.95768.json",
+        "lat": -33.8,
+        "lon": 151.3
+      },
+      {
+        "state": "NSW",
+        "title": "Parramatta",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.94764.json",
+        "lat": -33.8,
+        "lon": 151
+      },
+      {
+        "state": "NSW",
+        "title": "Penrith",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.94763.json",
+        "lat": -33.7,
+        "lon": 150.7
+      },
+      {
+        "state": "NSW",
+        "title": "Richmond",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.95753.json",
+        "lat": -33.6,
+        "lon": 150.8
+      },
+      {
+        "state": "NSW",
+        "title": "Terrey Hills",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.94759.json",
+        "lat": -33.7,
+        "lon": 151.2
+      },
+      {
+        "state": "NSW",
+        "title": "Wattamolla",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.95752.json",
+        "lat": -34.1,
+        "lon": 151.1
+      },
+      {
+        "state": "NSW",
+        "title": "Williamtown",
+        "url": "https://www.bom.gov.au/fwo/IDN60901/IDN60901.94776.json",
+        "lat": -32.8,
+        "lon": 151.8
+      },
+      {
+         "state": "SA",
+         "title": "Adelaide (West Terrace /  ngayirdapira)",
+         "url": "https://www.bom.gov.au/fwo/IDS60901/IDS60901.94648.json",
+         "lat": -34.9,
+         "lon": 138.6
+       },
+       {
+         "state": "SA",
+         "title": "Adelaide Airport",
+         "url": "https://www.bom.gov.au/fwo/IDS60901/IDS60901.94146.json",
+         "lat": -35,
+         "lon": 138.5
+       },
+       {
+         "state": "SA",
+         "title": "Edinburgh",
+         "url": "https://www.bom.gov.au/fwo/IDS60901/IDS60901.95676.json",
+         "lat": -34.7,
+         "lon": 138.6
+       },
+       {
+         "state": "SA",
+         "title": "Hindmarsh Island",
+         "url": "https://www.bom.gov.au/fwo/IDS60901/IDS60901.94677.json",
+         "lat": -35.5,
+         "lon": 138.8
+       },
+       {
+         "state": "SA",
+         "title": "Kuitpo",
+         "url": "https://www.bom.gov.au/fwo/IDS60901/IDS60901.94683.json",
+         "lat": -35.2,
+         "lon": 138.7
+       },
+       {
+         "state": "SA",
+         "title": "Mount Barker",
+         "url": "https://www.bom.gov.au/fwo/IDS60901/IDS60901.94806.json",
+         "lat": -35.1,
+         "lon": 138.8
+       },
+       {
+         "state": "SA",
+         "title": "Mount Crawford",
+         "url": "https://www.bom.gov.au/fwo/IDS60901/IDS60901.94678.json",
+         "lat": -34.7,
+         "lon": 138.9
+       },
+       {
+         "state": "SA",
+         "title": "Mount Lofty",
+         "url": "https://www.bom.gov.au/fwo/IDS60901/IDS60901.95678.json",
+         "lat": -35,
+         "lon": 138.7
+       },
+       {
+         "state": "SA",
+         "title": "Murray Bridge",
+         "url": "https://www.bom.gov.au/fwo/IDS60901/IDS60901.95812.json",
+         "lat": -35.1,
+         "lon": 139.3
+       },
+       {
+         "state": "SA",
+         "title": "Noarlunga",
+         "url": "https://www.bom.gov.au/fwo/IDS60901/IDS60901.94808.json",
+         "lat": -35.2,
+         "lon": 138.5
+       },
+       {
+         "state": "SA",
+         "title": "Nuriootpa",
+         "url": "https://www.bom.gov.au/fwo/IDS60901/IDS60901.94681.json",
+         "lat": -34.5,
+         "lon": 139
+       },
+       {
+         "state": "SA",
+         "title": "Outer Harbor (Black Pole)",
+         "url": "https://www.bom.gov.au/fwo/IDS60901/IDS60901.95675.json",
+         "lat": -34.7,
+         "lon": 138.5
+       },
+       {
+         "state": "SA",
+         "title": "Pallamana",
+         "url": "https://www.bom.gov.au/fwo/IDS60901/IDS60901.95818.json",
+         "lat": -35.1,
+         "lon": 139.2
+       },
+       {
+         "state": "SA",
+         "title": "Parafield",
+         "url": "https://www.bom.gov.au/fwo/IDS60901/IDS60901.95677.json",
+         "lat": -34.8,
+         "lon": 138.6
+       },
+       {
+         "state": "SA",
+         "title": "Parawa West",
+         "url": "https://www.bom.gov.au/fwo/IDS60901/IDS60901.94811.json",
+         "lat": -35.6,
+         "lon": 138.3
+       },
+       {
+         "state": "SA",
+         "title": "Roseworthy",
+         "url": "https://www.bom.gov.au/fwo/IDS60901/IDS60901.95671.json",
+         "lat": -34.5,
+         "lon": 138.7
+       },
+       {
+         "state": "SA",
+         "title": "Sellicks Hill",
+         "url": "https://www.bom.gov.au/fwo/IDS60901/IDS60901.95679.json",
+         "lat": -35.3,
+         "lon": 138.5
+       },
+       {
+         "state": "SA",
+         "title": "Strathalbyn",
+         "url": "https://www.bom.gov.au/fwo/IDS60901/IDS60901.94814.json",
+         "lat": -35.3,
+         "lon": 138.9
+       },
+       {
+         "state": "SA",
+         "title": "Victor Harbor",
+         "url": "https://www.bom.gov.au/fwo/IDS60901/IDS60901.95811.json",
+         "lat": -35.6,
+         "lon": 138.6
+       },
+       {
+         "state": "TAS",
+         "title": "Hobart",
+         "url": "https://www.bom.gov.au/fwo/IDT60901/IDT60901.94970.json",
+         "lat": -42.9,
+         "lon": 147.3
+       },
+       {
+         "state": "TAS",
+         "title": "Hobart Airport",
+         "url": "https://www.bom.gov.au/fwo/IDT60901/IDT60901.94619.json",
+         "lat": -42.8,
+         "lon": 147.5
+       },
+       {
+         "state": "TAS",
+         "title": "Bushy Park",
+         "url": "https://www.bom.gov.au/fwo/IDT60901/IDT60901.94964.json",
+         "lat": -42.7,
+         "lon": 146.9
+       },
+       {
+         "state": "TAS",
+         "title": "Campania",
+         "url": "https://www.bom.gov.au/fwo/IDT60901/IDT60901.95972.json",
+         "lat": -42.7,
+         "lon": 147.4
+       },
+       {
+         "state": "TAS",
+         "title": "Cape Bruny AWS",
+         "url": "https://www.bom.gov.au/fwo/IDT60901/IDT60901.95967.json",
+         "lat": -43.5,
+         "lon": 147.1
+       },
+       {
+         "state": "TAS",
+         "title": "Dennes Point",
+         "url": "https://www.bom.gov.au/fwo/IDT60901/IDT60901.94988.json",
+         "lat": -43.1,
+         "lon": 147.4
+       },
+       {
+         "state": "TAS",
+         "title": "Dover",
+         "url": "https://www.bom.gov.au/fwo/IDT60901/IDT60901.94961.json",
+         "lat": -43.3,
+         "lon": 147
+       },
+       {
+         "state": "TAS",
+         "title": "Dunalley",
+         "url": "https://www.bom.gov.au/fwo/IDT60901/IDT60901.94951.json",
+         "lat": -42.9,
+         "lon": 147.8
+       },
+       {
+         "state": "TAS",
+         "title": "Grove",
+         "url": "https://www.bom.gov.au/fwo/IDT60901/IDT60901.95977.json",
+         "lat": -43,
+         "lon": 147.1
+       },
+       {
+         "state": "TAS",
+         "title": "kunanyi / Mount Wellington",
+         "url": "https://www.bom.gov.au/fwo/IDT60901/IDT60901.95979.json",
+         "lat": -42.9,
+         "lon": 147.2
+       },
+       {
+         "state": "TAS",
+         "title": "Maria Island",
+         "url": "https://www.bom.gov.au/fwo/IDT60901/IDT60901.95988.json",
+         "lat": -42.7,
+         "lon": 148
+       },
+       {
+         "state": "TAS",
+         "title": "Tasman Island",
+         "url": "https://www.bom.gov.au/fwo/IDT60901/IDT60901.95986.json",
+         "lat": -43.2,
+         "lon": 148
+       },
+       {
+          "state": "WA",
+          "title": "Perth",
+          "url": "https://www.bom.gov.au/fwo/IDW60901/IDW60901.94608.json",
+          "lat": -31.9,
+          "lon": 115.9
+        },
+        {
+          "state": "WA",
+          "title": "Perth Airport",
+          "url": "https://www.bom.gov.au/fwo/IDW60901/IDW60901.94610.json",
+          "lat": -31.9,
+          "lon": 116
+        },
+        {
+          "state": "WA",
+          "title": "Armament Jetty",
+          "url": "https://www.bom.gov.au/fwo/IDW60901/IDW60901.99254.json",
+          "lat": -32.2,
+          "lon": 115.7
+        },
+        {
+          "state": "WA",
+          "title": "Bickley",
+          "url": "https://www.bom.gov.au/fwo/IDW60901/IDW60901.95610.json",
+          "lat": -32,
+          "lon": 116.1
+        },
+        {
+          "state": "WA",
+          "title": "Colpoys Point",
+          "url": "https://www.bom.gov.au/fwo/IDW60901/IDW60901.99255.json",
+          "lat": -32.2,
+          "lon": 115.7
+        },
+        {
+          "state": "WA",
+          "title": "Garden Island",
+          "url": "https://www.bom.gov.au/fwo/IDW60901/IDW60901.95607.json",
+          "lat": -32.2,
+          "lon": 115.7
+        },
+        {
+          "state": "WA",
+          "title": "Gooseberry Hill",
+          "url": "https://www.bom.gov.au/fwo/IDW60901/IDW60901.94615.json",
+          "lat": -31.9,
+          "lon": 116.1
+        },
+        {
+          "state": "WA",
+          "title": "Hillarys Point Boat Harbour",
+          "url": "https://www.bom.gov.au/fwo/IDW60901/IDW60901.95605.json",
+          "lat": -31.8,
+          "lon": 115.7
+        },
+        {
+          "state": "WA",
+          "title": "Jandakot",
+          "url": "https://www.bom.gov.au/fwo/IDW60901/IDW60901.94609.json",
+          "lat": -32.1,
+          "lon": 115.9
+        },
+        {
+          "state": "WA",
+          "title": "Karnet",
+          "url": "https://www.bom.gov.au/fwo/IDW60901/IDW60901.95614.json",
+          "lat": -32.4,
+          "lon": 116.1
+        },
+        {
+          "state": "WA",
+          "title": "Mandurah",
+          "url": "https://www.bom.gov.au/fwo/IDW60901/IDW60901.94605.json",
+          "lat": -32.5,
+          "lon": 115.7
+        },
+        {
+          "state": "WA",
+          "title": "Melville Water",
+          "url": "https://www.bom.gov.au/fwo/IDW60901/IDW60901.95620.json",
+          "lat": -32,
+          "lon": 115.8
+        },
+        {
+          "state": "WA",
+          "title": "Millendon (Swan Valley)",
+          "url": "https://www.bom.gov.au/fwo/IDW60901/IDW60901.94795.json",
+          "lat": -31.8,
+          "lon": 116
+        },
+        {
+          "state": "WA",
+          "title": "Pearce",
+          "url": "https://www.bom.gov.au/fwo/IDW60901/IDW60901.94612.json",
+          "lat": -31.7,
+          "lon": 116
+        },
+        {
+          "state": "WA",
+          "title": "Rottnest Island",
+          "url": "https://www.bom.gov.au/fwo/IDW60901/IDW60901.94602.json",
+          "lat": -32,
+          "lon": 115.5
+        },
+        {
+          "state": "WA",
+          "title": "Swanbourne",
+          "url": "https://www.bom.gov.au/fwo/IDW60901/IDW60901.94614.json",
+          "lat": -32,
+          "lon": 115.8
+        },
+        {
+           "state": "VIC",
+           "title": "Charlton",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94839.json",
+           "lat": -36.3,
+           "lon": 143.3
+         },
+         {
+           "state": "VIC",
+           "title": "Hopetoun Airport",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94838.json",
+           "lat": -35.7,
+           "lon": 142.4
+         },
+         {
+           "state": "VIC",
+           "title": "Kerang",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94844.json",
+           "lat": -35.7,
+           "lon": 143.9
+         },
+         {
+           "state": "VIC",
+           "title": "Mildura",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94693.json",
+           "lat": -34.2,
+           "lon": 142.1
+         },
+         {
+           "state": "VIC",
+           "title": "Swan Hill",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94843.json",
+           "lat": -35.4,
+           "lon": 143.5
+         },
+         {
+           "state": "VIC",
+           "title": "Walpeup",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.95831.json",
+           "lat": -35.1,
+           "lon": 142
+         },
+         {
+           "state": "VIC",
+           "title": "Edenhope",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.95832.json",
+           "lat": -37,
+           "lon": 141.3
+         },
+         {
+           "state": "VIC",
+           "title": "Horsham",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.95839.json",
+           "lat": -36.7,
+           "lon": 142.2
+         },
+         {
+           "state": "VIC",
+           "title": "Longerenong",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.95835.json",
+           "lat": -36.7,
+           "lon": 142.3
+         },
+         {
+           "state": "VIC",
+           "title": "Nhill Aerodrome",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94827.json",
+           "lat": -36.3,
+           "lon": 141.6
+         },
+         {
+           "state": "VIC",
+           "title": "Stawell",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94836.json",
+           "lat": -37.1,
+           "lon": 142.7
+         },
+         {
+           "state": "VIC",
+           "title": "Warracknabeal Airport",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94920.json",
+           "lat": -36.3,
+           "lon": 142.4
+         },
+         {
+           "state": "VIC",
+           "title": "Ararat",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94834.json",
+           "lat": -37.3,
+           "lon": 143
+         },
+         {
+           "state": "VIC",
+           "title": "Ben Nevis",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94835.json",
+           "lat": -37.2,
+           "lon": 143.2
+         },
+         {
+           "state": "VIC",
+           "title": "Cape Nelson",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94826.json",
+           "lat": -38.4,
+           "lon": 141.5
+         },
+         {
+           "state": "VIC",
+           "title": "Cape Otway",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94842.json",
+           "lat": -38.9,
+           "lon": 143.5
+         },
+         {
+           "state": "VIC",
+           "title": "Casterton",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.95825.json",
+           "lat": -37.6,
+           "lon": 141.3
+         },
+         {
+           "state": "VIC",
+           "title": "Dartmoor",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.95822.json",
+           "lat": -37.9,
+           "lon": 141.3
+         },
+         {
+           "state": "VIC",
+           "title": "Hamilton",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94829.json",
+           "lat": -37.6,
+           "lon": 142.1
+         },
+         {
+           "state": "VIC",
+           "title": "Mortlake",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94840.json",
+           "lat": -38.1,
+           "lon": 142.8
+         },
+         {
+           "state": "VIC",
+           "title": "Mount Gellibrand",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.95845.json",
+           "lat": -38.2,
+           "lon": 143.8
+         },
+         {
+           "state": "VIC",
+           "title": "Mount William",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94833.json",
+           "lat": -37.3,
+           "lon": 142.6
+         },
+         {
+           "state": "VIC",
+           "title": "Port Fairy",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94830.json",
+           "lat": -38.4,
+           "lon": 142.2
+         },
+         {
+           "state": "VIC",
+           "title": "Portland Airport",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94828.json",
+           "lat": -38.3,
+           "lon": 141.5
+         },
+         {
+           "state": "VIC",
+           "title": "Portland Harbour",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.95826.json",
+           "lat": -38.3,
+           "lon": 141.6
+         },
+         {
+           "state": "VIC",
+           "title": "Warrnambool",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94837.json",
+           "lat": -38.3,
+           "lon": 142.5
+         },
+         {
+           "state": "VIC",
+           "title": "Westmere",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.95840.json",
+           "lat": -37.7,
+           "lon": 142.9
+         },
+         {
+           "state": "VIC",
+           "title": "Aireys Inlet",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94846.json",
+           "lat": -38.5,
+           "lon": 144.1
+         },
+         {
+           "state": "VIC",
+           "title": "Avalon",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94854.json",
+           "lat": -38,
+           "lon": 144.5
+         },
+         {
+           "state": "VIC",
+           "title": "Ballarat",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94852.json",
+           "lat": -37.5,
+           "lon": 143.8
+         },
+         {
+           "state": "VIC",
+           "title": "Cerberus",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94898.json",
+           "lat": -38.4,
+           "lon": 145.2
+         },
+         {
+           "state": "VIC",
+           "title": "Coldstream",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94864.json",
+           "lat": -37.7,
+           "lon": 145.4
+         },
+         {
+           "state": "VIC",
+           "title": "Essendon Airport",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.95866.json",
+           "lat": -37.7,
+           "lon": 144.9
+         },
+         {
+           "state": "VIC",
+           "title": "Fawkner Beacon",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.95872.json",
+           "lat": -37.9,
+           "lon": 144.9
+         },
+         {
+           "state": "VIC",
+           "title": "Ferny Creek",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94872.json",
+           "lat": -37.9,
+           "lon": 145.3
+         },
+         {
+           "state": "VIC",
+           "title": "Frankston (Ballam Park)",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94876.json",
+           "lat": -38.2,
+           "lon": 145.2
+         },
+         {
+           "state": "VIC",
+           "title": "Frankston Beach",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94871.json",
+           "lat": -38.1,
+           "lon": 145.1
+         },
+         {
+           "state": "VIC",
+           "title": "Geelong Racecourse",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94857.json",
+           "lat": -38.2,
+           "lon": 144.4
+         },
+         {
+           "state": "VIC",
+           "title": "Laverton",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94865.json",
+           "lat": -37.9,
+           "lon": 144.8
+         },
+         {
+           "state": "VIC",
+           "title": "Melbourne Airport",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94866.json",
+           "lat": -37.7,
+           "lon": 144.8
+         },
+         {
+           "state": "VIC",
+           "title": "Melbourne (Olympic Park)",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.95936.json",
+           "lat": -37.8,
+           "lon": 145
+         },
+         {
+           "state": "VIC",
+           "title": "Moorabbin Airport",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94870.json",
+           "lat": -38,
+           "lon": 145.1
+         },
+         {
+           "state": "VIC",
+           "title": "Point Cook",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.95941.json",
+           "lat": -37.9,
+           "lon": 144.8
+         },
+         {
+           "state": "VIC",
+           "title": "Point Wilson",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94847.json",
+           "lat": -38.1,
+           "lon": 144.5
+         },
+         {
+           "state": "VIC",
+           "title": "Pound Creek",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94886.json",
+           "lat": -38.6,
+           "lon": 145.8
+         },
+         {
+           "state": "VIC",
+           "title": "Rhyll",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94892.json",
+           "lat": -38.5,
+           "lon": 145.3
+         },
+         {
+           "state": "VIC",
+           "title": "Scoresby",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.95867.json",
+           "lat": -37.9,
+           "lon": 145.3
+         },
+         {
+           "state": "VIC",
+           "title": "She Oaks",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94863.json",
+           "lat": -37.9,
+           "lon": 144.1
+         },
+         {
+           "state": "VIC",
+           "title": "South Channel Island",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94853.json",
+           "lat": -38.3,
+           "lon": 144.8
+         },
+         {
+           "state": "VIC",
+           "title": "St Kilda Harbour RMYS",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.95864.json",
+           "lat": -37.9,
+           "lon": 145
+         },
+         {
+           "state": "VIC",
+           "title": "Viewbank",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.95874.json",
+           "lat": -37.7,
+           "lon": 145.1
+         },
+         {
+           "state": "VIC",
+           "title": "Bendigo",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94855.json",
+           "lat": -36.7,
+           "lon": 144.3
+         },
+         {
+           "state": "VIC",
+           "title": "Echuca",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94861.json",
+           "lat": -36.2,
+           "lon": 144.8
+         },
+         {
+           "state": "VIC",
+           "title": "Kyabram",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.95833.json",
+           "lat": -36.3,
+           "lon": 145.1
+         },
+         {
+           "state": "VIC",
+           "title": "Mangalore",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94874.json",
+           "lat": -36.9,
+           "lon": 145.2
+         },
+         {
+           "state": "VIC",
+           "title": "Redesdale",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94859.json",
+           "lat": -37,
+           "lon": 144.5
+         },
+         {
+           "state": "VIC",
+           "title": "Shepparton",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94875.json",
+           "lat": -36.4,
+           "lon": 145.4
+         },
+         {
+           "state": "VIC",
+           "title": "Strathbogie",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.95843.json",
+           "lat": -36.8,
+           "lon": 145.7
+         },
+         {
+           "state": "VIC",
+           "title": "Tatura",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.95836.json",
+           "lat": -36.4,
+           "lon": 145.3
+         },
+         {
+           "state": "VIC",
+           "title": "Yarrawonga",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94862.json",
+           "lat": -36,
+           "lon": 146
+         },
+         {
+           "state": "VIC",
+           "title": "Albury",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.95896.json",
+           "lat": -36.1,
+           "lon": 147
+         },
+         {
+           "state": "VIC",
+           "title": "Benalla",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94884.json",
+           "lat": -36.6,
+           "lon": 146
+         },
+         {
+           "state": "VIC",
+           "title": "Edi Upper",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.95838.json",
+           "lat": -36.7,
+           "lon": 146.5
+         },
+         {
+           "state": "VIC",
+           "title": "Falls Creek",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94903.json",
+           "lat": -36.9,
+           "lon": 147.3
+         },
+         {
+           "state": "VIC",
+           "title": "Hunters Hill",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94878.json",
+           "lat": -36.2,
+           "lon": 147.5
+         },
+         {
+           "state": "VIC",
+           "title": "Lake Dartmouth",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94888.json",
+           "lat": -36.5,
+           "lon": 147.5
+         },
+         {
+           "state": "VIC",
+           "title": "Mount Buller",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94894.json",
+           "lat": -37.1,
+           "lon": 146.4
+         },
+         {
+           "state": "VIC",
+           "title": "Mount Hotham Airport",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94905.json",
+           "lat": -37,
+           "lon": 147.3
+         },
+         {
+           "state": "VIC",
+           "title": "Mount Hotham",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94906.json",
+           "lat": -37,
+           "lon": 147.1
+         },
+         {
+           "state": "VIC",
+           "title": "Rutherglen",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.95837.json",
+           "lat": -36.1,
+           "lon": 146.5
+         },
+         {
+           "state": "VIC",
+           "title": "Wangaratta",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94889.json",
+           "lat": -36.4,
+           "lon": 146.3
+         },
+         {
+           "state": "VIC",
+           "title": "Eildon Fire Tower",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94881.json",
+           "lat": -37.2,
+           "lon": 145.8
+         },
+         {
+           "state": "VIC",
+           "title": "Lake Eildon",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94882.json",
+           "lat": -37.2,
+           "lon": 145.9
+         },
+         {
+           "state": "VIC",
+           "title": "Maryborough",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94849.json",
+           "lat": -37.1,
+           "lon": 143.7
+         },
+         {
+           "state": "VIC",
+           "title": "Puckapunyal-Lyon Hill (Defence)",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94858.json",
+           "lat": -36.9,
+           "lon": 145.1
+         },
+         {
+           "state": "VIC",
+           "title": "Puckapunyal West (Defence)",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94856.json",
+           "lat": -37,
+           "lon": 144.9
+         },
+         {
+           "state": "VIC",
+           "title": "East Sale Airport",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.95907.json",
+           "lat": -38.1,
+           "lon": 147.1
+         },
+         {
+           "state": "VIC",
+           "title": "Hogan Island",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94949.json",
+           "lat": -39.2,
+           "lon": 147
+         },
+         {
+           "state": "VIC",
+           "title": "Latrobe Valley",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94891.json",
+           "lat": -38.2,
+           "lon": 146.5
+         },
+         {
+           "state": "VIC",
+           "title": "Mount Baw Baw",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.95901.json",
+           "lat": -37.8,
+           "lon": 146.3
+         },
+         {
+           "state": "VIC",
+           "title": "Mount Moornapa",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.95913.json",
+           "lat": -37.7,
+           "lon": 147.1
+         },
+         {
+           "state": "VIC",
+           "title": "Warragul (Nilma North)",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.99806.json",
+           "lat": -38.1,
+           "lon": 146
+         },
+         {
+           "state": "VIC",
+           "title": "Wilsons Promontory",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94893.json",
+           "lat": -39.1,
+           "lon": 146.4
+         },
+         {
+           "state": "VIC",
+           "title": "Yarram Airport",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.95890.json",
+           "lat": -38.6,
+           "lon": 146.7
+         },
+         {
+           "state": "VIC",
+           "title": "Bairnsdale",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94912.json",
+           "lat": -37.9,
+           "lon": 147.6
+         },
+         {
+           "state": "VIC",
+           "title": "Combienbar",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94914.json",
+           "lat": -37.3,
+           "lon": 149
+         },
+         {
+           "state": "VIC",
+           "title": "Gabo Island",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94933.json",
+           "lat": -37.6,
+           "lon": 149.9
+         },
+         {
+           "state": "VIC",
+           "title": "Gelantipy",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94913.json",
+           "lat": -37.2,
+           "lon": 148.3
+         },
+         {
+           "state": "VIC",
+           "title": "Lakes Entrance",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.95904.json",
+           "lat": -37.9,
+           "lon": 148
+         },
+         {
+           "state": "VIC",
+           "title": "Mallacoota",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94935.json",
+           "lat": -37.6,
+           "lon": 149.7
+         },
+         {
+           "state": "VIC",
+           "title": "Mount Nowa Nowa",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94930.json",
+           "lat": -37.7,
+           "lon": 148.1
+         },
+         {
+           "state": "VIC",
+           "title": "Omeo",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.94908.json",
+           "lat": -37.1,
+           "lon": 147.6
+         },
+         {
+           "state": "VIC",
+           "title": "Orbost",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.95918.json",
+           "lat": -37.7,
+           "lon": 148.5
+         },
+         {
+           "state": "VIC",
+           "title": "Cressy (CFA)",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.99813.json",
+           "lat": -38,
+           "lon": 143.6
+         },
+         {
+           "state": "VIC",
+           "title": "Wycheproof (CFA)",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.99815.json",
+           "lat": -36.1,
+           "lon": 143.2
+         },
+         {
+           "state": "VIC",
+           "title": "Ballan (CFA)",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.99820.json",
+           "lat": -37.6,
+           "lon": 144.2
+         },
+         {
+           "state": "VIC",
+           "title": "Trentham East (CFA)",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.99821.json",
+           "lat": -37.4,
+           "lon": 144.4
+         },
+         {
+           "state": "VIC",
+           "title": "Glenburn (CFA)",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.99822.json",
+           "lat": -37.3,
+           "lon": 145.5
+         },
+         {
+           "state": "VIC",
+           "title": "Gerangamete (CFA)",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.99826.json",
+           "lat": -38.4,
+           "lon": 143.7
+         },
+         {
+           "state": "VIC",
+           "title": "Mt Burnett (CFA)",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.99827.json",
+           "lat": -38,
+           "lon": 145.5
+         },
+         {
+           "state": "VIC",
+           "title": "Victoria Portable AWS M (CFA)",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.99900.json",
+           "lat": -37.4,
+           "lon": 146.1
+         },
+         {
+           "state": "VIC",
+           "title": "Victoria Portable AWS N (CFA)",
+           "url": "https://www.bom.gov.au/fwo/IDV60801/IDV60801.99901.json",
+           "lat": -36,
+           "lon": 144.1
+         }
+]
+
