@@ -60,24 +60,23 @@ struct WeatherStation: Identifiable, Codable {
 
     // MARK: - Built-in station catalogue
 
-    /// The hardcoded starter set.  Custom stations live in WeatherStationStore.
-    static let defaults: [WeatherStation] = [
-        WeatherStation(state: "VIC", title: "Point Cook",
-                       url: "https://www.bom.gov.au/fwo/IDV60901/IDV60901.95941.json",
-                       lat: -37.9, lon: 144.8),
-        WeatherStation(state: "VIC", title: "Melbourne",
-                       url: "https://www.bom.gov.au/fwo/IDV60901/IDV60901.95936.json",
-                       lat: -37.8, lon: 145.0),
-        WeatherStation(state: "VIC", title: "Moorabin Airport",
-                       url: "https://www.bom.gov.au/fwo/IDV60901/IDV60901.94870.json",
-                       lat: -38.0, lon: 145.1),
-        WeatherStation(state: "VIC", title: "Laverton",
-                       url: "https://www.bom.gov.au/fwo/IDV60901/IDV60901.94865.json",
-                       lat: -37.9, lon: 144.8),
-        WeatherStation(state: "QLD", title: "Brisbane",
-                       url: "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.94576.json",
-                       lat: -27.5, lon: 153.0),
-    ]
+    /// Bundled starter stations loaded from `stations.json`.
+    static let defaults: [WeatherStation] = loadDefaults()
+
+    private static func loadDefaults(bundle: Bundle = .main) -> [WeatherStation] {
+        guard
+            let url = bundle.url(forResource: "stations", withExtension: "json"),
+            let data = try? Data(contentsOf: url),
+            let seeds = try? JSONDecoder().decode([BundledWeatherStation].self, from: data)
+        else {
+            assertionFailure("Unable to load bundled stations.json")
+            return []
+        }
+
+        return seeds.map {
+            WeatherStation(state: $0.state, title: $0.title, url: $0.url, lat: $0.lat, lon: $0.lon)
+        }
+    }
 
     // MARK: - Nearest finder
 
@@ -85,4 +84,12 @@ struct WeatherStation: Identifiable, Codable {
     static func nearest(to location: CLLocation, from stations: [WeatherStation]) -> WeatherStation? {
         stations.min { $0.distance(to: location) < $1.distance(to: location) }
     }
+}
+
+private struct BundledWeatherStation: Decodable {
+    let state: String
+    let title: String
+    let url: String
+    let lat: Double
+    let lon: Double
 }

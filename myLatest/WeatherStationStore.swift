@@ -3,7 +3,7 @@
 //  myLatest
 //
 //  Single source of truth for all weather stations.
-//  Built-in stations live in WeatherStation.defaults (code).
+//  Built-in stations are bundled in stations.json and exposed via WeatherStation.defaults.
 //  Custom stations are persisted to UserDefaults as JSON.
 //
 
