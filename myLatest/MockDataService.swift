@@ -18,16 +18,24 @@ final class MockDataService {
 
     func fetchDashboard(trainLineName: String,
                         homeStation: String,
-                        cityStation: String) async -> DashboardData {
-        // All three sources run concurrently.
-        async let weatherTask = fetchWeatherSafely()
+                        cityStation: String,
+                        includeWeather: Bool = true) async -> DashboardData {
+        // Calendar and train sources always run concurrently.
         async let eventsTask  = fetchCalendarEventsSafely()
         async let trainTask   = fetchTrainInfoSafely(lineName:      trainLineName,
                                                      homeStation:   homeStation,
                                                      cityStation:   cityStation)
 
+        // Weather can be skipped by tabs that do not render weather content.
+        let weather: WeatherInfo
+        if includeWeather {
+            weather = await fetchWeatherSafely()
+        } else {
+            weather = Self.mockWeather()
+        }
+
         return await DashboardData(
-            weather:        weatherTask,
+            weather:        weather,
             upcomingEvents: eventsTask,
             trainInfo:      trainTask,
             fetchedAt:      Date()

@@ -17,12 +17,15 @@ struct myLatestApp: App {
             TabView {
                 Tab("Today", systemImage: "rectangle.grid.1x2.fill") {
                     ContentView()
-                        .environment(stationStore)
+                }
+                Tab("Weather", systemImage: "cloud.sun.fill") {
+                    WeatherView()
                 }
                 Tab("Health", systemImage: "heart.fill") {
                     HealthView()
                 }
             }
+            .environment(stationStore)
         }
     }
 }

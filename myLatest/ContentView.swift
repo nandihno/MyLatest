@@ -190,7 +190,6 @@ struct ContentView: View {
 
     private var cardsStack: some View {
         VStack(spacing: 20) {
-            WeatherCard(weather: displayData.weather)
             TrainCard(train: displayData.trainInfo)
             CalendarCard(events: displayData.upcomingEvents)
             
@@ -219,10 +218,97 @@ struct ContentView: View {
         let data = await MockDataService.shared.fetchDashboard(
             trainLineName: trainLineName,
             homeStation:   homeStation,
-            cityStation:   cityStation
+            cityStation:   cityStation,
+            includeWeather: false
         )
         withAnimation(.spring(duration: 0.5)) {
             loadState = .loaded(data)
+        }
+    }
+}
+
+// MARK: - Weather View
+
+struct WeatherView: View {
+    @State private var weather = MockDataService.mockWeather()
+    @State private var isLoading = false
+    @State private var hasLoaded = false
+    @State private var statusMessage = "Tap Fetch weather to load nearby station data."
+    @State private var usingFallbackData = false
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 20) {
+                    fetchButton
+                    statusBanner
+                    WeatherCard(weather: weather, title: "Weather Stations")
+                }
+                .padding()
+            }
+            .refreshable { await performFetch() }
+            .navigationTitle("Weather")
+            .task {
+                guard !hasLoaded else { return }
+                await performFetch()
+            }
+        }
+    }
+
+    private var fetchButton: some View {
+        Button(action: fetchWeather) {
+            HStack(spacing: 8) {
+                if isLoading {
+                    ProgressView().tint(.white).scaleEffect(0.85)
+                } else {
+                    Image(systemName: "arrow.clockwise")
+                }
+                Text(isLoading ? "Fetching..." : "Fetch weather")
+            }
+            .font(.headline)
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(isLoading ? Color.accentColor.opacity(0.7) : Color.accentColor)
+            .foregroundStyle(.white)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+        .disabled(isLoading)
+        .animation(.easeInOut(duration: 0.2), value: isLoading)
+    }
+
+    private var statusBanner: some View {
+        Label {
+            Text(statusMessage)
+        } icon: {
+            Image(systemName: usingFallbackData ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                .foregroundStyle(usingFallbackData ? .orange : .green)
+        }
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 2)
+    }
+
+    private func fetchWeather() {
+        Task { await performFetch() }
+    }
+
+    private func performFetch() async {
+        isLoading = true
+        defer {
+            isLoading = false
+            hasLoaded = true
+        }
+
+        do {
+            weather = try await WeatherService.shared.fetchWeather()
+            let stamp = Date().formatted(date: .omitted, time: .shortened)
+            statusMessage = "Last updated at \(stamp)"
+            usingFallbackData = false
+        } catch {
+            weather = MockDataService.mockWeather()
+            statusMessage = "Using fallback weather data (\(error.localizedDescription))"
+            usingFallbackData = true
         }
     }
 }
@@ -231,6 +317,7 @@ struct ContentView: View {
 
 struct WeatherCard: View {
     let weather: WeatherInfo
+    var title: String = "Weather"
 
     private var latest: WeatherObservation? { weather.observations.first }
 
@@ -238,7 +325,7 @@ struct WeatherCard: View {
         CardContainer {
             VStack(alignment: .leading, spacing: 12) {
 
-                Label("Weather", systemImage: "cloud.sun.fill")
+                Label(title, systemImage: "cloud.sun.fill")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
 
@@ -823,7 +910,6 @@ private struct _LoadedPreview: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    WeatherCard(weather: data.weather)
                     CalendarCard(events: data.upcomingEvents)
                     TrainCard(train: data.trainInfo)
                 }
