@@ -2,44 +2,26 @@
 //  ClaudeService.swift
 //  myLatest
 //
-//  Calls the Claude API to analyse health data.
+//  Generic Claude API transport plus domain-specific request builders.
 //
 
 import Foundation
 
-// MARK: - Service
+// MARK: - Claude client
 
-enum ClaudeService {
+private enum ClaudeClient {
+    private static let endpoint = URL(string: "https://api.anthropic.com/v1/messages")!
 
-    static func analyseHealthData(
-        summary: String,
-        age: String,
+    static func send(
+        _ payload: ClaudeMessageRequest,
         apiKey: String
-    ) async throws -> String {
-
-        let url = URL(string: "https://api.anthropic.com/v1/messages")!
-        var request = URLRequest(url: url)
+    ) async throws -> ClaudeMessageResponse {
+        var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
-        request.setValue("application/json",  forHTTPHeaderField: "Content-Type")
-        request.setValue(apiKey,              forHTTPHeaderField: "x-api-key")
-        request.setValue("2023-06-01",        forHTTPHeaderField: "anthropic-version")
-
-        // Prepend age context if provided.
-        var userContent = summary
-        if !age.trimmingCharacters(in: .whitespaces).isEmpty {
-            userContent = "User age: \(age) years old.\n\n" + summary
-        }
-
-        let body: [String: Any] = [
-            "model": "claude-haiku-4-5",
-            "max_tokens": 1024,
-            "system": "You are a caring and knowledgeable health advisor. Analyse the health data provided and give personalised, friendly advice. Structure your response with markdown section headers using ## and a relevant emoji for each topic — for example: ## 📊 Summary, ## 💤 Sleep, ## 🏃 Activity, ## ❤️ Heart Rate, ## 💡 Recommendations. Use bullet points (starting with - ) for lists. Use **bold** for key values or important points. Keep each section concise (2–4 points), and use an encouraging, easy-to-understand tone.",
-            "messages": [
-                ["role": "user", "content": userContent]
-            ]
-        ]
-
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        request.httpBody = try JSONEncoder().encode(payload)
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
@@ -50,12 +32,82 @@ enum ClaudeService {
             throw ClaudeAPIError.httpStatus(http.statusCode)
         }
 
-        let decoded = try JSONDecoder().decode(ClaudeMessageResponse.self, from: data)
-        return decoded.content.first?.text ?? "No analysis available"
+        return try JSONDecoder().decode(ClaudeMessageResponse.self, from: data)
     }
 }
 
-// MARK: - Decodable helpers
+// MARK: - Public service
+
+enum ClaudeService {
+    static func analyse(
+        spec: ClaudeAnalysisSpec,
+        apiKey: String
+    ) async throws -> String {
+        let request = ClaudeMessageRequest(
+            model: spec.model,
+            maxTokens: spec.maxTokens,
+            system: spec.systemPrompt,
+            messages: [.init(role: "user", content: spec.userContent)]
+        )
+
+        let response = try await ClaudeClient.send(request, apiKey: apiKey)
+        return response.content.compactMap(\.text).first ?? "No analysis available"
+    }
+
+    static func analyseHealthData(
+        summary: String,
+        age: String,
+        apiKey: String
+    ) async throws -> String {
+        let healthSpec = HealthAnalysisSpecBuilder.make(summary: summary, age: age)
+        return try await analyse(spec: healthSpec, apiKey: apiKey)
+    }
+}
+
+// MARK: - Analysis spec
+
+struct ClaudeAnalysisSpec {
+    var model: String = "claude-haiku-4-5"
+    var maxTokens: Int = 1024
+    var systemPrompt: String
+    var userContent: String
+}
+
+private enum HealthAnalysisSpecBuilder {
+    static func make(summary: String, age: String) -> ClaudeAnalysisSpec {
+        var content = summary
+        let trimmedAge = age.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedAge.isEmpty {
+            content = "User age: \(trimmedAge) years old.\n\n" + summary
+        }
+
+        return ClaudeAnalysisSpec(
+            systemPrompt: "You are a caring and knowledgeable health advisor. Analyse the health data provided and give personalised, friendly advice. Structure your response with markdown section headers using ## and a relevant emoji for each topic - for example: ## 📊 Summary, ## 💤 Sleep, ## 🏃 Activity, ## ❤️ Heart Rate, ## 💡 Recommendations. Use bullet points (starting with - ) for lists. Use **bold** for key values or important points. Keep each section concise (2-4 points), and use an encouraging, easy-to-understand tone.",
+            userContent: content
+        )
+    }
+}
+
+// MARK: - Request/response models
+
+private struct ClaudeMessageRequest: Encodable {
+    struct Message: Encodable {
+        let role: String
+        let content: String
+    }
+
+    let model: String
+    let maxTokens: Int
+    let system: String
+    let messages: [Message]
+
+    enum CodingKeys: String, CodingKey {
+        case model
+        case maxTokens = "max_tokens"
+        case system
+        case messages
+    }
+}
 
 private struct ClaudeMessageResponse: Decodable {
     struct ContentBlock: Decodable {
