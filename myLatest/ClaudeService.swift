@@ -62,6 +62,14 @@ enum ClaudeService {
         let healthSpec = HealthAnalysisSpecBuilder.make(summary: summary, age: age)
         return try await analyse(spec: healthSpec, apiKey: apiKey)
     }
+
+    static func analyseWeather(
+        forecastSummary: String,
+        apiKey: String
+    ) async throws -> String {
+        let spec = WeatherAnalysisSpecBuilder.make(forecastSummary: forecastSummary)
+        return try await analyse(spec: spec, apiKey: apiKey)
+    }
 }
 
 // MARK: - Analysis spec
@@ -71,6 +79,46 @@ struct ClaudeAnalysisSpec {
     var maxTokens: Int = 1024
     var systemPrompt: String
     var userContent: String
+}
+
+private enum WeatherAnalysisSpecBuilder {
+    static func make(forecastSummary: String) -> ClaudeAnalysisSpec {
+        let now = Date()
+        let dateFmt = DateFormatter()
+        dateFmt.dateStyle = .full
+        dateFmt.timeStyle = .short
+        let dateTimeStr = dateFmt.string(from: now)
+
+        let userContent = """
+        Today's date and time: \(dateTimeStr)
+
+        7-day forecast:
+        \(forecastSummary)
+        """
+
+        return ClaudeAnalysisSpec(
+            systemPrompt: """
+            You are a personal weather assistant, giving todays date with the following 7 day forecast.
+            Your Task:
+            Analyse this weather data and provide a brief, practical summary. Focus on:
+
+            1. TODAY — What to wear, whether to bring an umbrella, UV protection needed, best time for outdoor activity or gym
+            2. COMMUTE — Any weather impact on the morning or evening train commute
+            3. WEEK AHEAD — Flag any notable days (extreme heat, heavy rain, fire danger)
+            4. ONE SPECIFIC TIP — Something actionable based on the forecast
+
+            RULES:
+            - Be concise — max 150 words total
+            - Use plain conversational English
+            - No bullet points — write in short paragraphs
+            - Don't just repeat the data — interpret it
+            - If fire danger is Extreme or Catastrophic, always highlight this prominently
+            - Temperatures in Celsius
+            - Use a ## header for each section (e.g. ## Today, ## Commute, ## Week Ahead, ## Tip)
+            """,
+            userContent: userContent
+        )
+    }
 }
 
 private enum HealthAnalysisSpecBuilder {
