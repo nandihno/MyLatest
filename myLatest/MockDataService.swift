@@ -14,12 +14,23 @@ final class MockDataService {
     static let shared = MockDataService()
     private init() {}
 
+    private func rethrowIfCancelled(_ error: Error) throws {
+        if error is CancellationError {
+            throw CancellationError()
+        }
+
+        let nsError = error as NSError
+        if nsError.domain == NSURLErrorDomain, nsError.code == URLError.cancelled.rawValue {
+            throw CancellationError()
+        }
+    }
+
     // MARK: - Public API
 
     func fetchDashboard(trainLineName: String,
                         homeStation: String,
                         cityStation: String,
-                        includeWeather: Bool = true) async -> DashboardData {
+                        includeWeather: Bool = true) async throws -> DashboardData {
         // Calendar and train sources always run concurrently.
         async let eventsTask  = fetchCalendarEventsSafely()
         async let trainTask   = fetchTrainInfoSafely(lineName:      trainLineName,
@@ -29,25 +40,29 @@ final class MockDataService {
         // Weather can be skipped by tabs that do not render weather content.
         let weather: WeatherInfo
         if includeWeather {
-            weather = await fetchWeatherSafely()
+            weather = try await fetchWeatherSafely()
         } else {
             weather = Self.mockWeather()
         }
 
-        return await DashboardData(
+        let events = try await eventsTask
+        let train = try await trainTask
+
+        return DashboardData(
             weather:        weather,
-            upcomingEvents: eventsTask,
-            trainInfo:      trainTask,
+            upcomingEvents: events,
+            trainInfo:      train,
             fetchedAt:      Date()
         )
     }
 
     // MARK: - Weather (real with mock fallback)
 
-    private func fetchWeatherSafely() async -> WeatherInfo {
+    private func fetchWeatherSafely() async throws -> WeatherInfo {
         do {
             return try await WeatherService.shared.fetchWeather()
         } catch {
+            try rethrowIfCancelled(error)
             print("⚠️ WeatherService failed (\(error.localizedDescription)) — using mock data.")
             return Self.mockWeather()
         }
@@ -55,10 +70,11 @@ final class MockDataService {
 
     // MARK: - Calendar (real EventKit with mock fallback)
 
-    private func fetchCalendarEventsSafely() async -> [CalendarEvent] {
+    private func fetchCalendarEventsSafely() async throws -> [CalendarEvent] {
         do {
             return try await CalendarService.shared.fetchUpcomingEvents()
         } catch {
+            try rethrowIfCancelled(error)
             print("⚠️ CalendarService failed (\(error.localizedDescription)) — using mock data.")
             return Self.mockEvents()
         }
@@ -68,7 +84,7 @@ final class MockDataService {
 
     private func fetchTrainInfoSafely(lineName: String,
                                       homeStation: String,
-                                      cityStation: String) async -> TrainInfo {
+                                      cityStation: String) async throws -> TrainInfo {
         guard !lineName.isEmpty else {
             return Self.mockTrainInfo(lineName: lineName,
                                       homeStation: homeStation,
@@ -79,6 +95,7 @@ final class MockDataService {
                                                                 homeStation:  homeStation,
                                                                 cityStation:  cityStation)
         } catch {
+            try rethrowIfCancelled(error)
             print("⚠️ TrainService failed — using mock data.\n   \(error)")
             return Self.mockTrainInfo(lineName: lineName,
                                       homeStation: homeStation,

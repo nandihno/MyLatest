@@ -147,6 +147,17 @@ final class WeatherService {
 
     private init() {}
 
+    private func rethrowIfCancelled(_ error: Error) throws {
+        if error is CancellationError {
+            throw CancellationError()
+        }
+
+        let nsError = error as NSError
+        if nsError.domain == NSURLErrorDomain, nsError.code == URLError.cancelled.rawValue {
+            throw CancellationError()
+        }
+    }
+
     struct WeatherBundle {
         let weather: WeatherInfo
         let forecast: DailyForecastInfo?
@@ -191,6 +202,7 @@ final class WeatherService {
             let (data, _) = try await session.data(from: url)
             rawData = data
         } catch {
+            try rethrowIfCancelled(error)
             throw WeatherError.network(error)
         }
 
@@ -222,6 +234,7 @@ final class WeatherService {
             let (data, _) = try await session.data(from: forecastURL)
             rawData = data
         } catch {
+            try rethrowIfCancelled(error)
             throw WeatherError.network(error)
         }
 
@@ -312,6 +325,7 @@ final class WeatherService {
             let (data, _) = try await session.data(from: url)
             rawData = data
         } catch {
+            try rethrowIfCancelled(error)
             throw WeatherError.network(error)
         }
 

@@ -209,21 +209,35 @@ struct ContentView: View {
 
     /// Shared async implementation — used by both the button and pull-to-refresh.
     private func performFetch() async {
+        guard !loadState.isLoading else { return }
+
         // On the very first fetch (idle state) show the skeleton/placeholder cards
         // so the layout doesn't jump. On subsequent refreshes (data already on screen)
         // keep the existing data visible and silently swap in the new data when it
         // arrives — the pull-to-refresh spinner provides all the visual feedback needed.
+        let previousState = loadState
         if !loadState.isLoaded {
             withAnimation { loadState = .loading }
         }
-        let data = await MockDataService.shared.fetchDashboard(
-            trainLineName: trainLineName,
-            homeStation:   homeStation,
-            cityStation:   cityStation,
-            includeWeather: false
-        )
-        withAnimation(.spring(duration: 0.5)) {
-            loadState = .loaded(data)
+        do {
+            let data = try await MockDataService.shared.fetchDashboard(
+                trainLineName: trainLineName,
+                homeStation:   homeStation,
+                cityStation:   cityStation,
+                includeWeather: false
+            )
+            withAnimation(.spring(duration: 0.5)) {
+                loadState = .loaded(data)
+            }
+        } catch is CancellationError {
+            withAnimation {
+                loadState = previousState
+            }
+        } catch {
+            print("⚠️ Dashboard fetch failed unexpectedly (\(error.localizedDescription))")
+            withAnimation {
+                loadState = previousState
+            }
         }
     }
 }
@@ -465,6 +479,7 @@ struct WeatherView: View {
     }
 
     private func performFetch() async {
+        guard !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
 
