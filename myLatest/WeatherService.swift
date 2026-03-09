@@ -214,7 +214,7 @@ final class WeatherService {
             throw WeatherError.decoding(error)
         }
 
-        // 5. Map → WeatherInfo (first 5 observations)
+        // 5. Map → WeatherInfo (first 10 observations = 5 hours at BOM's 30-min cadence)
         return mapToWeatherInfo(response: response, fallbackTitle: station.title)
     }
 
@@ -282,7 +282,7 @@ final class WeatherService {
         let stationName = response.observations.header.first?.name ?? fallbackTitle
 
         let observations: [WeatherObservation] = response.observations.data
-            .prefix(5)
+            .prefix(10)
             .map { point in
                 // Empty string or "-" from BOM means no cloud = clear/sunny
                 let raw = (point.cloud ?? "").trimmingCharacters(in: .whitespaces)

@@ -30,11 +30,11 @@ struct WeatherObservation: Identifiable {
     }
 }
 
-/// Aggregates up to 5 observations from the nearest BOM weather station.
+/// Aggregates up to 10 observations from the nearest BOM weather station.
 struct WeatherInfo: Identifiable {
     let id = UUID()
     let stationName: String
-    let observations: [WeatherObservation]  // most-recent first, up to 5
+    let observations: [WeatherObservation]  // most-recent first, up to 10
 
     var latest: WeatherObservation? { observations.first }
 }

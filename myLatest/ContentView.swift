@@ -43,10 +43,20 @@ private extension DashboardData {
                                        relHumidity: 83, cloud: "Mostly Cloudy",  windDir: "SW", windSpeedKmh: 19),
                     WeatherObservation(localDateTime: "10:30am", apparentTemp: 15.9, airTemp: 17.1,
                                        relHumidity: 85, cloud: "Cloudy",         windDir: "SW", windSpeedKmh: 15),
-                    WeatherObservation(localDateTime: "10:00am", apparentTemp: 14.2, airTemp: 15.5,
+                    WeatherObservation(localDateTime: "10:00am", apparentTemp: 15.1, airTemp: 16.3,
+                                       relHumidity: 86, cloud: "Cloudy",         windDir: "S",  windSpeedKmh: 13),
+                    WeatherObservation(localDateTime:  "9:30am", apparentTemp: 14.5, airTemp: 15.6,
                                        relHumidity: 88, cloud: "Overcast",       windDir: "S",  windSpeedKmh: 11),
-                    WeatherObservation(localDateTime:  "9:30am", apparentTemp: 13.1, airTemp: 14.4,
-                                       relHumidity: 89, cloud: "Overcast",       windDir: "S",  windSpeedKmh:  9),
+                    WeatherObservation(localDateTime:  "9:00am", apparentTemp: 13.9, airTemp: 15.0,
+                                       relHumidity: 89, cloud: "Overcast",       windDir: "S",  windSpeedKmh: 10),
+                    WeatherObservation(localDateTime:  "8:30am", apparentTemp: 13.4, airTemp: 14.5,
+                                       relHumidity: 90, cloud: "Cloudy",         windDir: "SE", windSpeedKmh:  9),
+                    WeatherObservation(localDateTime:  "8:00am", apparentTemp: 12.9, airTemp: 14.0,
+                                       relHumidity: 91, cloud: "Cloudy",         windDir: "SE", windSpeedKmh:  8),
+                    WeatherObservation(localDateTime:  "7:30am", apparentTemp: 12.5, airTemp: 13.6,
+                                       relHumidity: 92, cloud: "Mostly Cloudy",  windDir: "E",  windSpeedKmh:  8),
+                    WeatherObservation(localDateTime:  "7:00am", apparentTemp: 12.0, airTemp: 13.1,
+                                       relHumidity: 93, cloud: "Mostly Cloudy",  windDir: "E",  windSpeedKmh:  7),
                 ]
             ),
             upcomingEvents: [
@@ -575,9 +585,74 @@ struct WeatherCard: View {
     let weather: WeatherInfo
     var title: String = "Weather"
 
+    private enum TemperatureSeries: CaseIterable {
+        case feelsLike
+        case airTemp
+
+        var label: String {
+            switch self {
+            case .feelsLike: return "Feels like"
+            case .airTemp: return "Air temp"
+            }
+        }
+
+        var color: Color {
+            switch self {
+            case .feelsLike: return .blue
+            case .airTemp: return .orange
+            }
+        }
+
+        var strokeStyle: StrokeStyle {
+            switch self {
+            case .feelsLike:
+                return StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round)
+            case .airTemp:
+                return StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round)
+            }
+        }
+
+        func value(for observation: WeatherObservation) -> Double {
+            switch self {
+            case .feelsLike: return observation.apparentTemp
+            case .airTemp: return observation.airTemp
+            }
+        }
+    }
+
+    private struct ChartPoint: Identifiable {
+        let id: UUID
+        let index: Int
+        let observation: WeatherObservation
+    }
+
     private var latest: WeatherObservation? { weather.observations.first }
     /// Reversed so the chart displays oldest → newest left to right.
     private var chartObs: [WeatherObservation] { Array(weather.observations.reversed()) }
+    private var chartPoints: [ChartPoint] {
+        chartObs.enumerated().map { offset, observation in
+            ChartPoint(id: observation.id, index: offset, observation: observation)
+        }
+    }
+    private var xAxisIndices: [Int] {
+        guard !chartPoints.isEmpty else { return [] }
+
+        var indices = Array(stride(from: 0, to: chartPoints.count, by: 2))
+        let lastIndex = chartPoints.count - 1
+        if indices.last != lastIndex {
+            indices.append(lastIndex)
+        }
+        return indices
+    }
+    private var temperatureDomain: ClosedRange<Double> {
+        let temperatures = chartObs.flatMap { [$0.apparentTemp, $0.airTemp] }
+        guard let minTemp = temperatures.min(), let maxTemp = temperatures.max() else {
+            return 0...30
+        }
+
+        let padding = max((maxTemp - minTemp) * 0.25, 1.2)
+        return (minTemp - padding)...(maxTemp + padding)
+    }
 
     var body: some View {
         CardContainer {
@@ -639,53 +714,35 @@ struct WeatherCard: View {
 
     private var temperatureChart: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Recent observations")
+            Text("Last 5 hours")
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.tertiary)
 
             Chart {
-                ForEach(chartObs) { obs in
-                    AreaMark(
-                        x: .value("Time", obs.localDateTime),
-                        y: .value("Feels like", obs.apparentTemp)
-                    )
-                    .interpolationMethod(.catmullRom)
-                    .foregroundStyle(
-                        .linearGradient(
-                            Gradient(colors: [.blue.opacity(0.3), .blue.opacity(0.04)]),
-                            startPoint: .top, endPoint: .bottom
+                ForEach(TemperatureSeries.allCases, id: \.label) { series in
+                    ForEach(chartPoints) { point in
+                        LineMark(
+                            x: .value("Observation", point.index),
+                            y: .value(series.label, series.value(for: point.observation)),
+                            series: .value("Series", series.label)
                         )
-                    )
-
-                    LineMark(
-                        x: .value("Time", obs.localDateTime),
-                        y: .value("Feels like", obs.apparentTemp)
-                    )
-                    .interpolationMethod(.catmullRom)
-                    .foregroundStyle(.blue)
-                    .lineStyle(StrokeStyle(lineWidth: 2))
-
-                    PointMark(
-                        x: .value("Time", obs.localDateTime),
-                        y: .value("Feels like", obs.apparentTemp)
-                    )
-                    .foregroundStyle(.blue)
-                    .symbolSize(25)
-
-                    LineMark(
-                        x: .value("Time", obs.localDateTime),
-                        y: .value("Air temp", obs.airTemp)
-                    )
-                    .interpolationMethod(.catmullRom)
-                    .foregroundStyle(.orange.opacity(0.8))
-                    .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
+                        .interpolationMethod(.linear)
+                        .foregroundStyle(series.color)
+                        .lineStyle(series.strokeStyle)
+                    }
                 }
             }
-            .chartYScale(domain: .automatic(includesZero: false))
+            .chartYScale(domain: temperatureDomain)
             .chartXAxis {
-                AxisMarks { _ in
+                AxisMarks(values: xAxisIndices) { value in
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                    AxisValueLabel().font(.caption2)
+                    AxisValueLabel {
+                        if let index = value.as(Int.self),
+                           chartPoints.indices.contains(index) {
+                            Text(chartPoints[index].observation.localDateTime)
+                                .font(.caption2)
+                        }
+                    }
                 }
             }
             .chartYAxis {
@@ -698,7 +755,7 @@ struct WeatherCard: View {
                     }
                 }
             }
-            .frame(height: 110)
+            .frame(height: 136)
 
             HStack(spacing: 16) {
                 HStack(spacing: 4) {
