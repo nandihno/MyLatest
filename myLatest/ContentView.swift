@@ -38,25 +38,25 @@ private extension DashboardData {
                 stationName: "Nearest station",
                 observations: [
                     WeatherObservation(localDateTime: "11:30am", apparentTemp: 17.4, airTemp: 18.8,
-                                       relHumidity: 81, cloud: "Partly Cloudy",  windDir: "SW", windSpeedKmh: 17),
+                                       pressureMSL: 1011.8, relHumidity: 81, cloud: "Partly Cloudy",  windDir: "SW", windSpeedKmh: 17),
                     WeatherObservation(localDateTime: "11:00am", apparentTemp: 16.8, airTemp: 17.9,
-                                       relHumidity: 83, cloud: "Mostly Cloudy",  windDir: "SW", windSpeedKmh: 19),
+                                       pressureMSL: 1012.0, relHumidity: 83, cloud: "Mostly Cloudy",  windDir: "SW", windSpeedKmh: 19),
                     WeatherObservation(localDateTime: "10:30am", apparentTemp: 15.9, airTemp: 17.1,
-                                       relHumidity: 85, cloud: "Cloudy",         windDir: "SW", windSpeedKmh: 15),
+                                       pressureMSL: 1012.2, relHumidity: 85, cloud: "Cloudy",         windDir: "SW", windSpeedKmh: 15),
                     WeatherObservation(localDateTime: "10:00am", apparentTemp: 15.1, airTemp: 16.3,
-                                       relHumidity: 86, cloud: "Cloudy",         windDir: "S",  windSpeedKmh: 13),
+                                       pressureMSL: 1012.5, relHumidity: 86, cloud: "Cloudy",         windDir: "S",  windSpeedKmh: 13),
                     WeatherObservation(localDateTime:  "9:30am", apparentTemp: 14.5, airTemp: 15.6,
-                                       relHumidity: 88, cloud: "Overcast",       windDir: "S",  windSpeedKmh: 11),
+                                       pressureMSL: 1012.8, relHumidity: 88, cloud: "Overcast",       windDir: "S",  windSpeedKmh: 11),
                     WeatherObservation(localDateTime:  "9:00am", apparentTemp: 13.9, airTemp: 15.0,
-                                       relHumidity: 89, cloud: "Overcast",       windDir: "S",  windSpeedKmh: 10),
+                                       pressureMSL: 1013.0, relHumidity: 89, cloud: "Overcast",       windDir: "S",  windSpeedKmh: 10),
                     WeatherObservation(localDateTime:  "8:30am", apparentTemp: 13.4, airTemp: 14.5,
-                                       relHumidity: 90, cloud: "Cloudy",         windDir: "SE", windSpeedKmh:  9),
+                                       pressureMSL: 1013.2, relHumidity: 90, cloud: "Cloudy",         windDir: "SE", windSpeedKmh:  9),
                     WeatherObservation(localDateTime:  "8:00am", apparentTemp: 12.9, airTemp: 14.0,
-                                       relHumidity: 91, cloud: "Cloudy",         windDir: "SE", windSpeedKmh:  8),
+                                       pressureMSL: 1013.5, relHumidity: 91, cloud: "Cloudy",         windDir: "SE", windSpeedKmh:  8),
                     WeatherObservation(localDateTime:  "7:30am", apparentTemp: 12.5, airTemp: 13.6,
-                                       relHumidity: 92, cloud: "Mostly Cloudy",  windDir: "E",  windSpeedKmh:  8),
+                                       pressureMSL: 1013.7, relHumidity: 92, cloud: "Mostly Cloudy",  windDir: "E",  windSpeedKmh:  8),
                     WeatherObservation(localDateTime:  "7:00am", apparentTemp: 12.0, airTemp: 13.1,
-                                       relHumidity: 93, cloud: "Mostly Cloudy",  windDir: "E",  windSpeedKmh:  7),
+                                       pressureMSL: 1013.9, relHumidity: 93, cloud: "Mostly Cloudy",  windDir: "E",  windSpeedKmh:  7),
                 ]
             ),
             upcomingEvents: [
@@ -646,12 +646,22 @@ struct WeatherCard: View {
     }
     private var temperatureDomain: ClosedRange<Double> {
         let temperatures = chartObs.flatMap { [$0.apparentTemp, $0.airTemp] }
-        guard let minTemp = temperatures.min(), let maxTemp = temperatures.max() else {
-            return 0...30
+        return paddedDomain(for: temperatures, minimumPadding: 1.2)
+    }
+    private var pressureDomain: ClosedRange<Double> {
+        paddedDomain(for: chartObs.map(\.pressureMSL), minimumPadding: 0.6)
+    }
+    private var humidityDomain: ClosedRange<Double> {
+        paddedDomain(for: chartObs.map { Double($0.relHumidity) }, minimumPadding: 4)
+    }
+
+    private func paddedDomain(for values: [Double], minimumPadding: Double) -> ClosedRange<Double> {
+        guard let minValue = values.min(), let maxValue = values.max() else {
+            return 0...1
         }
 
-        let padding = max((maxTemp - minTemp) * 0.25, 1.2)
-        return (minTemp - padding)...(maxTemp + padding)
+        let padding = max((maxValue - minValue) * 0.25, minimumPadding)
+        return (minValue - padding)...(maxValue + padding)
     }
 
     var body: some View {
@@ -704,7 +714,7 @@ struct WeatherCard: View {
 
                 if chartObs.count >= 2 {
                     Divider()
-                    temperatureChart
+                    observationCharts
                 }
             }
         }
@@ -712,50 +722,15 @@ struct WeatherCard: View {
 
     // MARK: - Observation chart
 
-    private var temperatureChart: some View {
-        VStack(alignment: .leading, spacing: 6) {
+    private var observationCharts: some View {
+        VStack(alignment: .leading, spacing: 12) {
             Text("Last 5 hours")
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.tertiary)
 
-            Chart {
-                ForEach(TemperatureSeries.allCases, id: \.label) { series in
-                    ForEach(chartPoints) { point in
-                        LineMark(
-                            x: .value("Observation", point.index),
-                            y: .value(series.label, series.value(for: point.observation)),
-                            series: .value("Series", series.label)
-                        )
-                        .interpolationMethod(.linear)
-                        .foregroundStyle(series.color)
-                        .lineStyle(series.strokeStyle)
-                    }
-                }
+            chartSection(title: "Temperature") {
+                temperatureChart
             }
-            .chartYScale(domain: temperatureDomain)
-            .chartXAxis {
-                AxisMarks(values: xAxisIndices) { value in
-                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                    AxisValueLabel {
-                        if let index = value.as(Int.self),
-                           chartPoints.indices.contains(index) {
-                            Text(chartPoints[index].observation.localDateTime)
-                                .font(.caption2)
-                        }
-                    }
-                }
-            }
-            .chartYAxis {
-                AxisMarks(position: .trailing) { value in
-                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                    AxisValueLabel {
-                        if let v = value.as(Double.self) {
-                            Text(String(format: "%.0f°", v)).font(.caption2)
-                        }
-                    }
-                }
-            }
-            .frame(height: 136)
 
             HStack(spacing: 16) {
                 HStack(spacing: 4) {
@@ -763,11 +738,148 @@ struct WeatherCard: View {
                     Text("Feels like").font(.caption2).foregroundStyle(.secondary)
                 }
                 HStack(spacing: 4) {
-                    Capsule().fill(.orange.opacity(0.8)).frame(width: 16, height: 2)
+                    Capsule().fill(.orange).frame(width: 16, height: 3)
                     Text("Air temp").font(.caption2).foregroundStyle(.secondary)
                 }
             }
+
+            chartSection(title: "Pressure (hPa)") {
+                pressureChart
+            }
+
+            chartSection(title: "Humidity (%)") {
+                humidityChart
+            }
+
+            pressureGuidance
         }
+    }
+
+    @ViewBuilder
+    private func chartSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.secondary)
+
+            content()
+        }
+    }
+
+    private var temperatureChart: some View {
+        Chart {
+            ForEach(TemperatureSeries.allCases, id: \.label) { series in
+                ForEach(chartPoints) { point in
+                    LineMark(
+                        x: .value("Observation", point.index),
+                        y: .value(series.label, series.value(for: point.observation)),
+                        series: .value("Series", series.label)
+                    )
+                    .interpolationMethod(.linear)
+                    .foregroundStyle(series.color)
+                    .lineStyle(series.strokeStyle)
+                }
+            }
+        }
+        .chartYScale(domain: temperatureDomain)
+        .chartXAxis(.hidden)
+        .chartYAxis {
+            AxisMarks(position: .trailing) { value in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                AxisValueLabel {
+                    if let v = value.as(Double.self) {
+                        Text(String(format: "%.0f°", v)).font(.caption2)
+                    }
+                }
+            }
+        }
+        .frame(height: 132)
+    }
+
+    private var pressureChart: some View {
+        Chart {
+            ForEach(chartPoints) { point in
+                LineMark(
+                    x: .value("Observation", point.index),
+                    y: .value("Pressure", point.observation.pressureMSL)
+                )
+                .interpolationMethod(.linear)
+                .foregroundStyle(.green)
+                .lineStyle(StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
+            }
+        }
+        .chartYScale(domain: pressureDomain)
+        .chartXAxis(.hidden)
+        .chartYAxis {
+            AxisMarks(position: .trailing) { value in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                AxisValueLabel {
+                    if let v = value.as(Double.self) {
+                        Text(String(format: "%.0f", v)).font(.caption2)
+                    }
+                }
+            }
+        }
+        .frame(height: 88)
+    }
+
+    private var humidityChart: some View {
+        Chart {
+            ForEach(chartPoints) { point in
+                LineMark(
+                    x: .value("Observation", point.index),
+                    y: .value("Humidity", Double(point.observation.relHumidity))
+                )
+                .interpolationMethod(.linear)
+                .foregroundStyle(.cyan)
+                .lineStyle(StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
+            }
+        }
+        .chartYScale(domain: humidityDomain)
+        .chartXAxis {
+            AxisMarks(values: xAxisIndices) { value in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                AxisValueLabel {
+                    if let index = value.as(Int.self),
+                       chartPoints.indices.contains(index) {
+                        Text(chartPoints[index].observation.localDateTime)
+                            .font(.caption2)
+                    }
+                }
+            }
+        }
+        .chartYAxis {
+            AxisMarks(position: .trailing) { value in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                AxisValueLabel {
+                    if let v = value.as(Double.self) {
+                        Text(String(format: "%.0f%%", v)).font(.caption2)
+                    }
+                }
+            }
+        }
+        .frame(height: 92)
+    }
+
+    private var pressureGuidance: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Label("Pressure Guide", systemImage: "info.circle.fill")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            Text("Standard Pressure: 1013.25 hPa is considered standard atmospheric pressure at sea level.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text("High Pressure (Anticyclone): Values above 1013 hPa generally indicate stable, dry, and sunny weather.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text("Low Pressure (Depression): Values below 1013 hPa indicate unstable, cloudy, and stormy weather.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
     }
 }
 

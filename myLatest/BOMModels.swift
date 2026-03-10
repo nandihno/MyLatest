@@ -32,6 +32,7 @@ struct BOMDataPoint: Decodable {
     let localDateTime: String   // e.g. "04/11:30am"
     let apparentT: Double?      // apparent (feels-like) temperature °C
     let airTemp: Double?        // actual air temperature °C
+    let pressMsl: Double?       // mean sea-level pressure hPa
     let relHum: Int?            // relative humidity %
     let cloud: String?          // "Cloudy", "Mostly Cloudy", "" / "-" means clear
     let windDir: String?        // compass bearing e.g. "SW"
@@ -42,6 +43,7 @@ struct BOMDataPoint: Decodable {
         case localDateTime = "local_date_time"
         case apparentT    = "apparent_t"
         case airTemp      = "air_temp"
+        case pressMsl     = "press_msl"
         case relHum       = "rel_hum"
         case cloud
         case windDir      = "wind_dir"

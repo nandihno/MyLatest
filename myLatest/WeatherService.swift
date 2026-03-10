@@ -295,6 +295,7 @@ final class WeatherService {
                     localDateTime: Self.timeOnly(from: point.localDateTime),
                     apparentTemp:  point.apparentT ?? point.airTemp ?? 0,
                     airTemp:       point.airTemp ?? 0,
+                    pressureMSL:   point.pressMsl ?? 1013.25,
                     relHumidity:   point.relHum ?? 0,
                     cloud:         cloud,
                     windDir:       windDir.isEmpty ? "—" : windDir,

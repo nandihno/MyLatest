@@ -13,6 +13,7 @@ struct WeatherObservation: Identifiable {
     let localDateTime: String   // e.g. "11:30am"
     let apparentTemp: Double    // apparent_t  – feels-like temperature (°C)
     let airTemp: Double         // air_temp    – actual temperature (°C)
+    let pressureMSL: Double     // press_msl   – pressure reduced to sea level (hPa)
     let relHumidity: Int        // rel_hum     – relative humidity (%)
     let cloud: String           // "Sunny" when BOM field is empty/"-"
     let windDir: String         // e.g. "SW"
