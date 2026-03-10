@@ -36,6 +36,7 @@ final class MockDataService {
         async let trainTask   = fetchTrainInfoSafely(lineName:      trainLineName,
                                                      homeStation:   homeStation,
                                                      cityStation:   cityStation)
+        async let drivingTask = fetchDrivingTimesSafely()
 
         // Weather can be skipped by tabs that do not render weather content.
         let weather: WeatherInfo
@@ -47,11 +48,13 @@ final class MockDataService {
 
         let events = try await eventsTask
         let train = try await trainTask
+        let driving = await drivingTask
 
         return DashboardData(
             weather:        weather,
             upcomingEvents: events,
             trainInfo:      train,
+            drivingEstimates: driving,
             fetchedAt:      Date()
         )
     }
@@ -100,6 +103,22 @@ final class MockDataService {
             return Self.mockTrainInfo(lineName: lineName,
                                       homeStation: homeStation,
                                       cityStation: cityStation)
+        }
+    }
+
+    // MARK: - Driving times
+
+    private func fetchDrivingTimesSafely() async -> [DrivingTimeEstimate] {
+        let destinations = DrivingDestinationStore.shared.all
+        guard !destinations.isEmpty else { return [] }
+
+        do {
+            return try await DrivingTimeService.shared.fetchDrivingTimes()
+        } catch {
+            print("⚠️ DrivingTimeService failed (\(error.localizedDescription)) — returning unavailable routes.")
+            return destinations.map {
+                DrivingTimeEstimate.unavailable(destination: $0, message: error.localizedDescription)
+            }
         }
     }
 
@@ -189,6 +208,23 @@ final class MockDataService {
             cityStationDepartures: mockDepartures(station: city, toCity: false, baseSeconds: base + 600),
             melbourneTimeAtFetch:  TrainService.currentTimeString()
         )
+    }
+
+    static func mockDrivingTimes(for destinations: [DrivingDestination]) -> [DrivingTimeEstimate] {
+        guard !destinations.isEmpty else { return [] }
+
+        return destinations.enumerated().map { index, destination in
+            let minutes = 18 + (index * 7)
+            let delay = index == 0 ? 6 : nil
+            return DrivingTimeEstimate(
+                destination: destination,
+                travelMinutes: minutes,
+                delayMinutes: delay,
+                advisory: delay == nil ? nil : "Traffic is adding time on this route.",
+                hasDelay: delay != nil,
+                errorMessage: nil
+            )
+        }
     }
 
     // Generates `count` evenly-spaced mock departures starting at `baseSeconds`.

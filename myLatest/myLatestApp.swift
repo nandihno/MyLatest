@@ -11,11 +11,12 @@ struct myLatestApp: App {
     /// the full session.  Injected into the SwiftUI environment so any view can
     /// read it with @Environment(WeatherStationStore.self).
     @State private var stationStore = WeatherStationStore.shared
+    @State private var drivingDestinationStore = DrivingDestinationStore.shared
 
     var body: some Scene {
         WindowGroup {
             TabView {
-                Tab("Today", systemImage: "rectangle.grid.1x2.fill") {
+                Tab("Commuting", systemImage: "car.2.fill") {
                     ContentView()
                 }
                 Tab("Weather", systemImage: "cloud.sun.fill") {
@@ -26,6 +27,7 @@ struct myLatestApp: App {
                 }
             }
             .environment(stationStore)
+            .environment(drivingDestinationStore)
         }
     }
 }

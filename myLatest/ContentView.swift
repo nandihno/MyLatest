@@ -28,7 +28,8 @@ enum LoadState {
 private extension DashboardData {
     static func placeholder(trainLineName: String,
                             homeStation: String,
-                            cityStation: String) -> DashboardData {
+                            cityStation: String,
+                            drivingDestinations: [DrivingDestination]) -> DashboardData {
         let now = Date()
         let cal = Calendar.current
         let base = TrainService.secondsSinceMidnight()
@@ -83,6 +84,7 @@ private extension DashboardData {
                 cityStationDepartures: placeholderDepartures(base: base + 600),
                 melbourneTimeAtFetch:  "--:-- --"
             ),
+            drivingEstimates: MockDataService.mockDrivingTimes(for: drivingDestinations),
             fetchedAt: now
         )
     }
@@ -106,13 +108,15 @@ struct ContentView: View {
     @AppStorage("homeStation")   private var homeStation:   String = ""
     @AppStorage("cityStation")   private var cityStation:   String = "Flinders Street"
 
+    @Environment(DrivingDestinationStore.self) private var drivingDestinationStore
     @State private var loadState: LoadState = .idle
     @State private var showSettings = false
 
     private var displayData: DashboardData {
         loadState.data ?? .placeholder(trainLineName: trainLineName,
                                        homeStation:   homeStation,
-                                       cityStation:   cityStation)
+                                       cityStation:   cityStation,
+                                       drivingDestinations: drivingDestinationStore.all)
     }
 
     var body: some View {
@@ -202,8 +206,8 @@ struct ContentView: View {
     private var cardsStack: some View {
         VStack(spacing: 20) {
             TrainCard(train: displayData.trainInfo)
+            DrivingTimesCard(estimates: displayData.drivingEstimates)
             CalendarCard(events: displayData.upcomingEvents)
-            
         }
         .redacted(reason: loadState.shouldRedact ? .placeholder : [])
         .opacity(loadState.isIdle ? 0.55 : 1.0)
@@ -1242,6 +1246,99 @@ struct CalendarCard: View {
     }
 }
 
+// MARK: - Driving Times Card
+
+struct DrivingTimesCard: View {
+    let estimates: [DrivingTimeEstimate]
+
+    var body: some View {
+        CardContainer {
+            VStack(alignment: .leading, spacing: 12) {
+                Label("Driving Times", systemImage: "car.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                if estimates.isEmpty {
+                    Text("Add destinations in Settings to see live driving times from your current location.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    ForEach(estimates) { estimate in
+                        DrivingTimeRow(estimate: estimate)
+                        if estimate.id != estimates.last?.id {
+                            Divider()
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct DrivingTimeRow: View {
+    let estimate: DrivingTimeEstimate
+
+    private var accentColor: Color {
+        estimate.hasDelay ? .red : .green
+    }
+
+    private var statusText: String {
+        if let delayMinutes = estimate.delayMinutes, delayMinutes > 0 {
+            return "+\(delayMinutes) min delay"
+        }
+        if estimate.hasDelay {
+            return estimate.advisory ?? "Traffic delay reported"
+        }
+        return "No reported delay"
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(estimate.destination.name)
+                    .font(.subheadline.weight(.semibold))
+                Text(estimate.destination.address)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 12)
+
+            if let errorMessage = estimate.errorMessage {
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("Unavailable")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.red)
+                    Text(errorMessage)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.trailing)
+                }
+            } else if let travelMinutes = estimate.travelMinutes {
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("\(travelMinutes) min")
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(accentColor)
+                    Text(statusText)
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(accentColor)
+                        .multilineTextAlignment(.trailing)
+                    if estimate.delayMinutes == nil,
+                       estimate.hasDelay,
+                       let advisory = estimate.advisory {
+                        Text(advisory)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.trailing)
+                    }
+                }
+            }
+        }
+    }
+}
+
 struct EventRow: View {
     let event: CalendarEvent
     @Environment(\.openURL) private var openURL
@@ -1610,6 +1707,7 @@ struct SettingsView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(WeatherStationStore.self) private var stationStore
+    @Environment(DrivingDestinationStore.self) private var drivingDestinationStore
     @AppStorage("claudeApiKey") private var claudeApiKey: String = ""
     @AppStorage("userAge")      private var userAge:      String = ""
     @AppStorage("userExtraInformation") private var userExtraInformation: String = ""
@@ -1645,6 +1743,24 @@ struct SettingsView: View {
                             .padding(.top, 2)
                     }
                     .font(.footnote)
+                }
+
+                // ── Driving ──────────────────────────────────────────────
+                Section {
+                    NavigationLink {
+                        DrivingDestinationsView()
+                    } label: {
+                        HStack {
+                            Text("Driving Destinations")
+                            Spacer()
+                            Text("\(drivingDestinationStore.all.count)")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } header: {
+                    Text("Driving")
+                } footer: {
+                    Text("Add destination addresses here. The Commuting tab will calculate live driving times from your current device location.")
                 }
 
                 // ── Profile ──────────────────────────────────────────────
@@ -1716,6 +1832,8 @@ struct SettingsView: View {
 
 #Preview("Idle — first launch") {
     ContentView()
+        .environment(DrivingDestinationStore.shared)
+        .environment(WeatherStationStore.shared)
 }
 
 #Preview("Loaded — real-looking data") {
@@ -1723,7 +1841,12 @@ struct SettingsView: View {
     let events  = MockDataService.mockEvents()
     let train   = MockDataService.mockTrainInfo()
     let data    = DashboardData(weather: weather, upcomingEvents: events,
-                                trainInfo: train, fetchedAt: Date())
+                                trainInfo: train,
+                                drivingEstimates: MockDataService.mockDrivingTimes(for: [
+                                    DrivingDestination(name: "Office", address: "120 Spencer Street, Melbourne VIC 3000, Australia", latitude: -37.8175, longitude: 144.9520),
+                                    DrivingDestination(name: "Airport", address: "Arrival Drive, Melbourne Airport VIC 3045, Australia", latitude: -37.6690, longitude: 144.8410)
+                                ]),
+                                fetchedAt: Date())
     _LoadedPreview(data: data)
 }
 
@@ -1733,8 +1856,9 @@ private struct _LoadedPreview: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    CalendarCard(events: data.upcomingEvents)
                     TrainCard(train: data.trainInfo)
+                    DrivingTimesCard(estimates: data.drivingEstimates)
+                    CalendarCard(events: data.upcomingEvents)
                 }
                 .padding()
             }

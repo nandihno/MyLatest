@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import CoreLocation
 
 // MARK: - Weather
 
@@ -142,6 +143,31 @@ struct DailyForecastInfo {
     }
 }
 
+// MARK: - Driving
+
+struct DrivingTimeEstimate: Identifiable {
+    let destination: DrivingDestination
+    let travelMinutes: Int?
+    let delayMinutes: Int?
+    let advisory: String?
+    let hasDelay: Bool
+    let errorMessage: String?
+
+    var id: UUID { destination.id }
+    var isAvailable: Bool { travelMinutes != nil && errorMessage == nil }
+
+    static func unavailable(destination: DrivingDestination, message: String) -> DrivingTimeEstimate {
+        DrivingTimeEstimate(
+            destination: destination,
+            travelMinutes: nil,
+            delayMinutes: nil,
+            advisory: nil,
+            hasDelay: false,
+            errorMessage: message
+        )
+    }
+}
+
 // MARK: - Calendar
 
 struct CalendarEvent: Identifiable {
@@ -231,5 +257,6 @@ struct DashboardData {
     let weather: WeatherInfo
     let upcomingEvents: [CalendarEvent]
     let trainInfo: TrainInfo
+    let drivingEstimates: [DrivingTimeEstimate]
     let fetchedAt: Date
 }
