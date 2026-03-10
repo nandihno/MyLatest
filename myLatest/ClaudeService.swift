@@ -57,9 +57,14 @@ enum ClaudeService {
     static func analyseHealthData(
         summary: String,
         age: String,
+        extraInformation: String,
         apiKey: String
     ) async throws -> String {
-        let healthSpec = HealthAnalysisSpecBuilder.make(summary: summary, age: age)
+        let healthSpec = HealthAnalysisSpecBuilder.make(
+            summary: summary,
+            age: age,
+            extraInformation: extraInformation
+        )
         return try await analyse(spec: healthSpec, apiKey: apiKey)
     }
 
@@ -122,17 +127,48 @@ private enum WeatherAnalysisSpecBuilder {
 }
 
 private enum HealthAnalysisSpecBuilder {
-    static func make(summary: String, age: String) -> ClaudeAnalysisSpec {
-        var content = summary
+    static func make(summary: String, age: String, extraInformation: String) -> ClaudeAnalysisSpec {
+        var contentParts: [String] = []
+        contentParts.append("Current date and time: \(formattedCurrentDateTime())")
+
         let trimmedAge = age.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmedAge.isEmpty {
-            content = "User age: \(trimmedAge) years old.\n\n" + summary
+            contentParts.append("User age: \(trimmedAge) years old.")
         }
+        let trimmedExtraInformation = extraInformation.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedExtraInformation.isEmpty {
+            contentParts.append("Extra information: \(trimmedExtraInformation)")
+        }
+        contentParts.append(summary)
 
         return ClaudeAnalysisSpec(
             systemPrompt: "You are a caring and knowledgeable health advisor. Analyse the health data provided and give personalised, friendly advice. Structure your response with markdown section headers using ## and a relevant emoji for each topic - for example: ## 📊 Summary, ## 💤 Sleep, ## 🏃 Activity, ## ❤️ Heart Rate, ## 💡 Recommendations. Use bullet points (starting with - ) for lists. Use **bold** for key values or important points. Keep each section concise (2-4 points), and use an encouraging, easy-to-understand tone.",
-            userContent: content
+            userContent: contentParts.joined(separator: "\n\n")
         )
+    }
+
+    private static func formattedCurrentDateTime() -> String {
+        let now = Date()
+        let calendar = Calendar.current
+        let day = calendar.component(.day, from: now)
+
+        let weekdayFormatter = DateFormatter()
+        weekdayFormatter.locale = Locale(identifier: "en_US_POSIX")
+        weekdayFormatter.dateFormat = "EEEE"
+
+        let monthYearFormatter = DateFormatter()
+        monthYearFormatter.locale = Locale(identifier: "en_US_POSIX")
+        monthYearFormatter.dateFormat = "MMMM yyyy"
+
+        let timeFormatter = DateFormatter()
+        timeFormatter.locale = Locale(identifier: "en_US_POSIX")
+        timeFormatter.dateFormat = "h:mm a"
+
+        let ordinalFormatter = NumberFormatter()
+        ordinalFormatter.numberStyle = .ordinal
+        let ordinalDay = ordinalFormatter.string(from: NSNumber(value: day)) ?? "\(day)"
+
+        return "\(weekdayFormatter.string(from: now)) \(ordinalDay) of \(monthYearFormatter.string(from: now)), \(timeFormatter.string(from: now))"
     }
 }
 

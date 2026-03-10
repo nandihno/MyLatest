@@ -1612,6 +1612,7 @@ struct SettingsView: View {
     @Environment(WeatherStationStore.self) private var stationStore
     @AppStorage("claudeApiKey") private var claudeApiKey: String = ""
     @AppStorage("userAge")      private var userAge:      String = ""
+    @AppStorage("userExtraInformation") private var userExtraInformation: String = ""
 
     var body: some View {
         NavigationStack {
@@ -1653,10 +1654,19 @@ struct SettingsView: View {
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
                     }
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Extra Information")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+
+                        TextField("Anything Claude should consider about your health or lifestyle", text: $userExtraInformation, axis: .vertical)
+                            .lineLimit(3...5)
+                            .autocorrectionDisabled()
+                    }
                 } header: {
                     Text("Profile")
                 } footer: {
-                    Text("Used to personalise your AI health analysis.")
+                    Text("Used to personalise your AI health analysis, along with the current date and time.")
                 }
 
                 // ── Claude AI ─────────────────────────────────────────────

@@ -17,6 +17,7 @@ struct HealthView: View {
 
     @AppStorage("claudeApiKey") private var claudeApiKey: String = ""
     @AppStorage("userAge")      private var userAge:      String = ""
+    @AppStorage("userExtraInformation") private var userExtraInformation: String = ""
     @State private var isAnalysing    = false
     @State private var analysisResult: String? = nil
     @State private var showAnalysis   = false
@@ -94,15 +95,26 @@ struct HealthView: View {
                 }
 
                 Button(action: analyseWithClaude) {
-                    Label("Analyse with Claude", systemImage: "sparkles")
-                        .font(.subheadline.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(claudeApiKey.isEmpty ? Color.purple.opacity(0.35) : Color.purple)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    HStack(spacing: 8) {
+                        if isAnalysing {
+                            ProgressView()
+                                .progressViewStyle(.circular)
+                                .tint(.white)
+                                .scaleEffect(0.9)
+                            Text("Analysing…")
+                        } else {
+                            Image(systemName: "sparkles")
+                            Text("Analyse with Claude")
+                        }
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background((claudeApiKey.isEmpty || isAnalysing) ? Color.purple.opacity(0.35) : Color.purple)
+                    .foregroundStyle(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
-                .disabled(claudeApiKey.isEmpty)
+                .disabled(claudeApiKey.isEmpty || isAnalysing)
             }
         }
     }
@@ -184,9 +196,10 @@ struct HealthView: View {
             let summary = HealthService.shared.summaryText(for: data)
             do {
                 let result = try await ClaudeService.analyseHealthData(
-                    summary: summary,
-                    age:     userAge,
-                    apiKey:  claudeApiKey
+                    summary:          summary,
+                    age:              userAge,
+                    extraInformation: userExtraInformation,
+                    apiKey:           claudeApiKey
                 )
                 analysisResult = result
             } catch {
