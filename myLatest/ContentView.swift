@@ -1325,9 +1325,7 @@ private struct DrivingTimeRow: View {
                         .font(.caption2.weight(.medium))
                         .foregroundStyle(accentColor)
                         .multilineTextAlignment(.trailing)
-                    if estimate.delayMinutes == nil,
-                       estimate.hasDelay,
-                       let advisory = estimate.advisory {
+                    if let advisory = estimate.advisory {
                         Text(advisory)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
