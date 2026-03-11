@@ -14,6 +14,7 @@ import Charts
 struct HealthView: View {
     @State private var healthData: HealthData?
     @State private var isLoading = false
+    @State private var lastUpdatedAt: Date?
 
     @AppStorage("claudeApiKey") private var claudeApiKey: String = ""
     @AppStorage("userAge")      private var userAge:      String = ""
@@ -54,6 +55,15 @@ struct HealthView: View {
     private var scrollBody: some View {
         ScrollView {
             VStack(spacing: 16) {
+                if let lastUpdatedAt {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                        Text("Last updated at \(lastUpdatedAt.formatted(date: .omitted, time: .shortened))")
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
                 WorkoutDistanceCard(data: healthData!.workoutData.weeklyDistance)
                 ActivitySummaryCard(activities:    healthData!.workoutData.activities,
                                     weekStartDate: healthData!.workoutData.weeklyDistance.weekStartDate)
@@ -76,6 +86,7 @@ struct HealthView: View {
             isLoading = true
         }
         healthData = await HealthService.shared.fetchHealthData()
+        lastUpdatedAt = Date()
         isLoading = false
     }
 

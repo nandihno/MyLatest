@@ -108,10 +108,15 @@ struct ContentView: View {
     @AppStorage("homeStation")   private var homeStation:   String = ""
     @AppStorage("cityStation")   private var cityStation:   String = "Flinders Street"
     @AppStorage("googleMapsApiKey") private var googleMapsApiKey: String = ""
+    @AppStorage("drivingProvider") private var drivingProviderRaw: String = DrivingProvider.apple.rawValue
 
     @Environment(DrivingDestinationStore.self) private var drivingDestinationStore
     @State private var loadState: LoadState = .idle
     @State private var showSettings = false
+
+    private var drivingProvider: DrivingProvider {
+        DrivingProvider(rawValue: drivingProviderRaw) ?? .apple
+    }
 
     private var displayData: DashboardData {
         loadState.data ?? .placeholder(trainLineName: trainLineName,
@@ -207,7 +212,7 @@ struct ContentView: View {
     private var cardsStack: some View {
         VStack(spacing: 20) {
             TrainCard(train: displayData.trainInfo)
-            DrivingTimesCard(estimates: displayData.drivingEstimates)
+            DrivingTimesCard(estimates: displayData.drivingEstimates, provider: drivingProvider)
             CalendarCard(events: displayData.upcomingEvents)
         }
         .redacted(reason: loadState.shouldRedact ? .placeholder : [])
@@ -239,6 +244,7 @@ struct ContentView: View {
                 trainLineName: trainLineName,
                 homeStation:   homeStation,
                 cityStation:   cityStation,
+                drivingProvider: drivingProvider,
                 googleMapsApiKey: googleMapsApiKey,
                 includeWeather: false
             )
@@ -1252,13 +1258,27 @@ struct CalendarCard: View {
 
 struct DrivingTimesCard: View {
     let estimates: [DrivingTimeEstimate]
+    let provider: DrivingProvider
+
+    private var poweredByText: String {
+        switch provider {
+        case .apple:  return "Powered by Apple Maps"
+        case .google: return "Powered by Google Maps"
+        }
+    }
 
     var body: some View {
         CardContainer {
             VStack(alignment: .leading, spacing: 12) {
-                Label("Driving Times", systemImage: "car.fill")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                HStack {
+                    Label("Driving Times", systemImage: "car.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(poweredByText)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
 
                 if estimates.isEmpty {
                     Text("Add destinations in Settings to see live driving times from your current location.")
@@ -1267,7 +1287,7 @@ struct DrivingTimesCard: View {
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
                     ForEach(estimates) { estimate in
-                        DrivingTimeRow(estimate: estimate)
+                        DrivingTimeRow(estimate: estimate, provider: provider)
                         if estimate.id != estimates.last?.id {
                             Divider()
                         }
@@ -1280,6 +1300,8 @@ struct DrivingTimesCard: View {
 
 private struct DrivingTimeRow: View {
     let estimate: DrivingTimeEstimate
+    let provider: DrivingProvider
+    @Environment(\.openURL) private var openURL
 
     private var accentColor: Color {
         estimate.hasDelay ? .red : .green
@@ -1295,47 +1317,66 @@ private struct DrivingTimeRow: View {
         return "No reported delay"
     }
 
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(estimate.destination.name)
-                    .font(.subheadline.weight(.semibold))
-                Text(estimate.destination.address)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+    private func openInMaps() {
+        let dest = estimate.destination
+        switch provider {
+        case .apple:
+            if let url = URL(string: "http://maps.apple.com/?daddr=\(dest.latitude),\(dest.longitude)&dirflg=d") {
+                openURL(url)
             }
+        case .google:
+            let appURL = URL(string: "comgooglemaps://?daddr=\(dest.latitude),\(dest.longitude)&directionsmode=driving")!
+            let webURL = URL(string: "https://www.google.com/maps/dir/?api=1&destination=\(dest.latitude),\(dest.longitude)&travelmode=driving")!
+            openURL(appURL) { accepted in
+                if !accepted { openURL(webURL) }
+            }
+        }
+    }
 
-            Spacer(minLength: 12)
-
-            if let errorMessage = estimate.errorMessage {
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("Unavailable")
+    var body: some View {
+        Button(action: openInMaps) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(estimate.destination.name)
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.red)
-                    Text(errorMessage)
-                        .font(.caption2)
+                    Text(estimate.destination.address)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.trailing)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-            } else if let travelMinutes = estimate.travelMinutes {
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("\(travelMinutes) min")
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(accentColor)
-                    Text(statusText)
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(accentColor)
-                        .multilineTextAlignment(.trailing)
-                    if let advisory = estimate.advisory {
-                        Text(advisory)
+
+                Spacer(minLength: 12)
+
+                if let errorMessage = estimate.errorMessage {
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text("Unavailable")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.red)
+                        Text(errorMessage)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.trailing)
                     }
+                } else if let travelMinutes = estimate.travelMinutes {
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text("\(travelMinutes) min")
+                            .font(.title3.weight(.bold))
+                            .foregroundStyle(accentColor)
+                        Text(statusText)
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(accentColor)
+                            .multilineTextAlignment(.trailing)
+                        if let advisory = estimate.advisory {
+                            Text(advisory)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.trailing)
+                        }
+                    }
                 }
             }
         }
+        .buttonStyle(.plain)
     }
 }
 
@@ -1710,7 +1751,15 @@ struct SettingsView: View {
     @Environment(DrivingDestinationStore.self) private var drivingDestinationStore
     @AppStorage("claudeApiKey") private var claudeApiKey: String = ""
     @AppStorage("googleMapsApiKey") private var googleMapsApiKey: String = ""
+    @AppStorage("drivingProvider") private var drivingProviderRaw: String = DrivingProvider.apple.rawValue
     @AppStorage("userAge")      private var userAge:      String = ""
+
+    private var useGoogleMaps: Binding<Bool> {
+        Binding(
+            get: { drivingProviderRaw == DrivingProvider.google.rawValue },
+            set: { drivingProviderRaw = ($0 ? DrivingProvider.google : DrivingProvider.apple).rawValue }
+        )
+    }
     @AppStorage("userExtraInformation") private var userExtraInformation: String = ""
 
     var body: some View {
@@ -1758,24 +1807,23 @@ struct SettingsView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    Toggle("Use Google Maps", isOn: useGoogleMaps)
+                    if useGoogleMaps.wrappedValue {
+                        LabeledContent("API Key") {
+                            TextField("AIza...", text: $googleMapsApiKey)
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.never)
+                                .multilineTextAlignment(.trailing)
+                        }
+                    }
                 } header: {
                     Text("Driving")
                 } footer: {
-                    Text("Add destination addresses here. The Commuting tab will calculate live driving times from your current device location.")
-                }
-
-                // ── Google Maps ─────────────────────────────────────────
-                Section {
-                    LabeledContent("API Key") {
-                        TextField("AIza...", text: $googleMapsApiKey)
-                            .autocorrectionDisabled()
-                            .textInputAutocapitalization(.never)
-                            .multilineTextAlignment(.trailing)
+                    if useGoogleMaps.wrappedValue {
+                        Text("Using Google Routes API for driving times. Get an API key at console.cloud.google.com.")
+                    } else {
+                        Text("Using Apple Maps for driving times. Toggle on to use Google Maps instead.")
                     }
-                } header: {
-                    Text("Google Maps")
-                } footer: {
-                    Text("Your Google Maps API key for driving time estimates via the Routes API. Get one at console.cloud.google.com.")
                 }
 
                 // ── Profile ──────────────────────────────────────────────
@@ -1872,7 +1920,7 @@ private struct _LoadedPreview: View {
             ScrollView {
                 VStack(spacing: 20) {
                     TrainCard(train: data.trainInfo)
-                    DrivingTimesCard(estimates: data.drivingEstimates)
+                    DrivingTimesCard(estimates: data.drivingEstimates, provider: .apple)
                     CalendarCard(events: data.upcomingEvents)
                 }
                 .padding()
