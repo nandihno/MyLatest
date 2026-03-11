@@ -30,13 +30,14 @@ final class MockDataService {
     func fetchDashboard(trainLineName: String,
                         homeStation: String,
                         cityStation: String,
+                        googleMapsApiKey: String = "",
                         includeWeather: Bool = true) async throws -> DashboardData {
         // Calendar and train sources always run concurrently.
         async let eventsTask  = fetchCalendarEventsSafely()
         async let trainTask   = fetchTrainInfoSafely(lineName:      trainLineName,
                                                      homeStation:   homeStation,
                                                      cityStation:   cityStation)
-        async let drivingTask = fetchDrivingTimesSafely()
+        async let drivingTask = fetchDrivingTimesSafely(apiKey: googleMapsApiKey)
 
         // Weather can be skipped by tabs that do not render weather content.
         let weather: WeatherInfo
@@ -108,12 +109,12 @@ final class MockDataService {
 
     // MARK: - Driving times
 
-    private func fetchDrivingTimesSafely() async -> [DrivingTimeEstimate] {
+    private func fetchDrivingTimesSafely(apiKey: String) async -> [DrivingTimeEstimate] {
         let destinations = DrivingDestinationStore.shared.all
         guard !destinations.isEmpty else { return [] }
 
         do {
-            return try await DrivingTimeService.shared.fetchDrivingTimes()
+            return try await DrivingTimeService.shared.fetchDrivingTimes(apiKey: apiKey)
         } catch {
             print("⚠️ DrivingTimeService failed (\(error.localizedDescription)) — returning unavailable routes.")
             return destinations.map {

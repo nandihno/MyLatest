@@ -107,6 +107,7 @@ struct ContentView: View {
     @AppStorage("trainLineName") private var trainLineName: String = ""
     @AppStorage("homeStation")   private var homeStation:   String = ""
     @AppStorage("cityStation")   private var cityStation:   String = "Flinders Street"
+    @AppStorage("googleMapsApiKey") private var googleMapsApiKey: String = ""
 
     @Environment(DrivingDestinationStore.self) private var drivingDestinationStore
     @State private var loadState: LoadState = .idle
@@ -238,6 +239,7 @@ struct ContentView: View {
                 trainLineName: trainLineName,
                 homeStation:   homeStation,
                 cityStation:   cityStation,
+                googleMapsApiKey: googleMapsApiKey,
                 includeWeather: false
             )
             withAnimation(.spring(duration: 0.5)) {
@@ -1707,6 +1709,7 @@ struct SettingsView: View {
     @Environment(WeatherStationStore.self) private var stationStore
     @Environment(DrivingDestinationStore.self) private var drivingDestinationStore
     @AppStorage("claudeApiKey") private var claudeApiKey: String = ""
+    @AppStorage("googleMapsApiKey") private var googleMapsApiKey: String = ""
     @AppStorage("userAge")      private var userAge:      String = ""
     @AppStorage("userExtraInformation") private var userExtraInformation: String = ""
 
@@ -1759,6 +1762,20 @@ struct SettingsView: View {
                     Text("Driving")
                 } footer: {
                     Text("Add destination addresses here. The Commuting tab will calculate live driving times from your current device location.")
+                }
+
+                // ── Google Maps ─────────────────────────────────────────
+                Section {
+                    LabeledContent("API Key") {
+                        TextField("AIza...", text: $googleMapsApiKey)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                            .multilineTextAlignment(.trailing)
+                    }
+                } header: {
+                    Text("Google Maps")
+                } footer: {
+                    Text("Your Google Maps API key for driving time estimates via the Routes API. Get one at console.cloud.google.com.")
                 }
 
                 // ── Profile ──────────────────────────────────────────────
