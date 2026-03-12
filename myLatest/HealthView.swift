@@ -93,65 +93,104 @@ struct HealthView: View {
     // MARK: Claude Analysis
 
     private var claudeAnalyseCard: some View {
-        CardContainer {
-            VStack(alignment: .leading, spacing: 12) {
-                Label("AI Health Analysis", systemImage: "brain.head.profile")
-                    .font(.headline)
-                    .foregroundStyle(.purple)
+        ZStack {
+            LinearGradient(
+                colors: [Color.purple.opacity(0.18), Color.pink.opacity(0.12)],
+                startPoint: .topLeading, endPoint: .bottomTrailing
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Image(systemName: "brain.head.profile.fill")
+                        .font(.title3)
+                        .symbolRenderingMode(.multicolor)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("AI Health Briefing")
+                            .font(.headline)
+                        Text("Powered by Claude")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
 
                 if claudeApiKey.isEmpty {
-                    Text("Set your Claude API key in Settings to enable AI analysis.")
+                    Label("Add your Claude API key in Settings to enable.", systemImage: "key.fill")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
 
                 Button(action: analyseWithClaude) {
-                    HStack(spacing: 8) {
-                        if isAnalysing {
-                            ProgressView()
-                                .progressViewStyle(.circular)
-                                .tint(.white)
-                                .scaleEffect(0.9)
-                            Text("Analysing…")
-                        } else {
-                            Image(systemName: "sparkles")
-                            Text("Analyse with Claude")
-                        }
+                    HStack(spacing: 6) {
+                        Image(systemName: "sparkles")
+                        Text("Get My Health Briefing")
                     }
                     .font(.subheadline.weight(.semibold))
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background((claudeApiKey.isEmpty || isAnalysing) ? Color.purple.opacity(0.35) : Color.purple)
+                    .padding(.vertical, 11)
+                    .background(
+                        claudeApiKey.isEmpty
+                        ? LinearGradient(colors: [.gray.opacity(0.3), .gray.opacity(0.25)],
+                                         startPoint: .leading, endPoint: .trailing)
+                        : LinearGradient(colors: [.purple, .pink],
+                                         startPoint: .leading, endPoint: .trailing)
+                    )
                     .foregroundStyle(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
-                .disabled(claudeApiKey.isEmpty || isAnalysing)
+                .disabled(claudeApiKey.isEmpty)
             }
+            .padding(16)
         }
     }
 
     private var analysisSheet: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    if isAnalysing {
-                        VStack(spacing: 20) {
-                            ProgressView().scaleEffect(1.5)
-                            Text("Analysing your health data…")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                VStack(spacing: 0) {
+                    // ── Gradient header ──────────────────────────────────
+                    ZStack {
+                        LinearGradient(
+                            colors: [Color.purple.opacity(0.75), Color.pink.opacity(0.55)],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        )
+                        VStack(spacing: 8) {
+                            Image(systemName: "brain.head.profile.fill")
+                                .font(.system(size: 44))
+                                .symbolRenderingMode(.multicolor)
+                            Text("Health Briefing")
+                                .font(.title2.weight(.semibold))
+                                .foregroundStyle(.white)
+                            Text(Date().formatted(date: .abbreviated, time: .shortened))
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.8))
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 60)
-                    } else if let result = analysisResult {
-                        ForEach(parsedSections(result)) { section in
-                            AnalysisSectionCard(title: section.title, content: section.body)
+                        .padding(.vertical, 28)
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+
+                    // ── Content ──────────────────────────────────────────
+                    VStack(alignment: .leading, spacing: 14) {
+                        if isAnalysing {
+                            VStack(spacing: 20) {
+                                ProgressView().scaleEffect(1.5)
+                                Text("Analysing your health data…")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 60)
+                        } else if let result = analysisResult {
+                            ForEach(parsedSections(result)) { section in
+                                HealthAnalysisSectionCard(title: section.title, content: section.body)
+                            }
                         }
                     }
+                    .padding()
                 }
-                .padding()
             }
-            .navigationTitle("Health Analysis")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -739,33 +778,55 @@ private struct ActivityRow: View {
     }
 }
 
-// MARK: - Analysis section card
+// MARK: - Health Analysis Section Card
 
-private struct AnalysisSectionCard: View {
+private struct HealthAnalysisSectionCard: View {
     let title:   String
     let content: String
 
+    private var style: (symbol: String, color: Color) {
+        let t = title.lowercased()
+        if t.contains("sleep")                                    { return ("moon.zzz.fill",        .indigo) }
+        if t.contains("heart") || t.contains("cardio")           { return ("heart.fill",           .red)    }
+        if t.contains("activity") || t.contains("exercise")      { return ("figure.run",           .orange) }
+        if t.contains("distance") || t.contains("walk")          { return ("figure.walk",          .teal)   }
+        if t.contains("recovery") || t.contains("rest")          { return ("bed.double.fill",      .blue)   }
+        if t.contains("tip") || t.contains("recommend")          { return ("lightbulb.fill",       .yellow) }
+        if t.contains("summary") || t.contains("overview")       { return ("chart.bar.fill",       .green)  }
+        if t.contains("warning") || t.contains("concern")        { return ("exclamationmark.triangle.fill", .orange) }
+        return                                                             ("sparkles",             .purple)
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if !title.isEmpty {
-                Text(title)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-            }
-            if let attributed = try? AttributedString(markdown: content) {
-                Text(attributed)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            } else {
+        HStack(alignment: .top, spacing: 0) {
+            RoundedRectangle(cornerRadius: 3)
+                .fill(style.color)
+                .frame(width: 4)
+                .padding(.vertical, 4)
+
+            VStack(alignment: .leading, spacing: 8) {
+                if !title.isEmpty {
+                    HStack(spacing: 7) {
+                        Image(systemName: style.symbol)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(style.color)
+                        Text(title)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(style.color)
+                    }
+                }
                 Text(content)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary)
+                    .lineSpacing(4)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+            .padding(.leading, 14)
+            .padding(.vertical, 14)
+            .padding(.trailing, 14)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .background(style.color.opacity(0.07))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 }
 
