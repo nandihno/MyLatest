@@ -41,6 +41,24 @@ struct WeatherInfo: Identifiable {
     var latest: WeatherObservation? { observations.first }
 }
 
+// MARK: - Hourly Forecast
+
+struct HourlyForecastHour: Identifiable {
+    let id = UUID()
+    let time: String          // local time e.g. "2 PM"
+    let temp: Int             // °C
+    let feelsLike: Int        // °C
+    let rainChance: Int       // percentage
+    let iconDescriptor: String
+    let isNight: Bool
+}
+
+struct HourlyForecastInfo {
+    let hours: [HourlyForecastHour]
+}
+
+// MARK: - Daily Forecast
+
 struct DailyForecastNow {
     let isNight: Bool?
     let nowLabel: String?

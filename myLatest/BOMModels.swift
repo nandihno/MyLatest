@@ -113,6 +113,43 @@ struct BOMForecastUV: Decodable {
     let category: String?
 }
 
+// MARK: - Hourly forecast
+
+struct BOMHourlyForecastResponse: Decodable {
+    let data: [BOMHourlyForecastPoint]
+}
+
+struct BOMHourlyForecastPoint: Decodable {
+    let rain: BOMHourlyRain?
+    let temp: Int?
+    let tempFeelsLike: Int?
+    let wind: BOMHourlyWind?
+    let iconDescriptor: String?
+    let time: String
+    let isNight: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case rain, temp, wind, time
+        case tempFeelsLike = "temp_feels_like"
+        case iconDescriptor = "icon_descriptor"
+        case isNight = "is_night"
+    }
+}
+
+struct BOMHourlyRain: Decodable {
+    let chance: Int?
+}
+
+struct BOMHourlyWind: Decodable {
+    let speedKilometre: Int?
+    let direction: String?
+
+    enum CodingKeys: String, CodingKey {
+        case speedKilometre = "speed_kilometre"
+        case direction
+    }
+}
+
 struct BOMForecastNow: Decodable {
     let isNight: Bool?
     let nowLabel: String?

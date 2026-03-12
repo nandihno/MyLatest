@@ -53,6 +53,7 @@ final class WeatherService {
     struct WeatherBundle {
         let weather: WeatherInfo
         let forecast: DailyForecastInfo?
+        let hourlyForecast: HourlyForecastInfo?
     }
 
     /// Full weather tab pipeline using a single location fix.
@@ -60,9 +61,11 @@ final class WeatherService {
         let deviceLocation = try await locationManager.currentLocation()
         async let weatherTask = fetchWeather(for: deviceLocation)
         async let forecastTask = fetchDailyForecast(for: deviceLocation)
+        async let hourlyTask = fetchHourlyForecast(for: deviceLocation)
         let weather = try await weatherTask
         let forecast = try? await forecastTask
-        return WeatherBundle(weather: weather, forecast: forecast)
+        let hourly = try? await hourlyTask
+        return WeatherBundle(weather: weather, forecast: forecast, hourlyForecast: hourly)
     }
 
     /// Full pipeline: device location → nearest station → BOM fetch → WeatherInfo
@@ -117,7 +120,8 @@ final class WeatherService {
             throw WeatherError.noForecastLocation
         }
 
-        guard let forecastURL = URL(string: "\(Self.weatherBaseURL)/locations/\(bomLocation.geohash)/forecasts/daily") else {
+        let geohash = String(bomLocation.geohash.prefix(6))
+        guard let forecastURL = URL(string: "\(Self.weatherBaseURL)/locations/\(geohash)/forecasts/daily") else {
             throw WeatherError.noForecastLocation
         }
 
@@ -166,6 +170,58 @@ final class WeatherService {
         return DailyForecastInfo(locationName: bomLocation.name,
                                  geohash: bomLocation.geohash,
                                  days: Array(days))
+    }
+
+    private func fetchHourlyForecast(for deviceLocation: CLLocation) async throws -> HourlyForecastInfo {
+        let locationLookup = try await fetchLocationLookup(lat: deviceLocation.coordinate.latitude,
+                                                           lon: deviceLocation.coordinate.longitude)
+        guard let bomLocation = locationLookup.data.first else {
+            throw WeatherError.noForecastLocation
+        }
+
+        let geohash = String(bomLocation.geohash.prefix(6))
+        guard let url = URL(string: "\(Self.weatherBaseURL)/locations/\(geohash)/forecasts/hourly") else {
+            throw WeatherError.noForecastLocation
+        }
+
+        let rawData: Data
+        do {
+            let (data, _) = try await session.data(from: url)
+            rawData = data
+        } catch {
+            try rethrowIfCancelled(error)
+            throw WeatherError.network(error)
+        }
+
+        let response: BOMHourlyForecastResponse
+        do {
+            response = try JSONDecoder().decode(BOMHourlyForecastResponse.self, from: rawData)
+        } catch {
+            throw WeatherError.decoding(error)
+        }
+
+        let now = Date()
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime]
+
+        let timeFmt = DateFormatter()
+        timeFmt.dateFormat = "h a"
+
+        let hours: [HourlyForecastHour] = response.data.compactMap { point in
+            guard let date = iso.date(from: point.time) else { return nil }
+            // Only include hours from now onwards, up to 5 hours ahead
+            guard date >= now, date <= now.addingTimeInterval(5 * 3600) else { return nil }
+            return HourlyForecastHour(
+                time: timeFmt.string(from: date),
+                temp: point.temp ?? 0,
+                feelsLike: point.tempFeelsLike ?? 0,
+                rainChance: point.rain?.chance ?? 0,
+                iconDescriptor: point.iconDescriptor ?? "mostly_sunny",
+                isNight: point.isNight ?? false
+            )
+        }
+
+        return HourlyForecastInfo(hours: hours)
     }
 
     // MARK: - Mapping
