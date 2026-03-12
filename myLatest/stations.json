@@ -43,13 +43,6 @@
   },
   {
     "state": "VIC",
-    "title": "Fawkner Beacon",
-    "url": "https://www.bom.gov.au/fwo/IDV60901/IDV60901.95872.json",
-    "lat": -37.9,
-    "lon": 144.9
-  },
-  {
-    "state": "VIC",
     "title": "Ferny Creek",
     "url": "https://www.bom.gov.au/fwo/IDV60901/IDV60901.94872.json",
     "lat": -37.9,
@@ -253,20 +246,6 @@
   },
   {
     "state": "QLD",
-    "title": "Hope Banks Beacon",
-    "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.99497.json",
-    "lat": -27.4,
-    "lon": 153.3
-  },
-  {
-    "state": "QLD",
-    "title": "Inner Beacon",
-    "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.94590.json",
-    "lat": -27.3,
-    "lon": 153.2
-  },
-  {
-    "state": "QLD",
     "title": "Kingaroy",
     "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.94549.json",
     "lat": -26.6,
@@ -278,13 +257,6 @@
     "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.95572.json",
     "lat": -26.6,
     "lon": 152.9
-  },
-  {
-    "state": "QLD",
-    "title": "North West 10 Beacon",
-    "url": "https://www.bom.gov.au/fwo/IDQ60901/IDQ60901.99496.json",
-    "lat": -27,
-    "lon": 153.2
   },
   {
     "state": "QLD",

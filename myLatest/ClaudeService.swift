@@ -110,7 +110,8 @@ private enum WeatherAnalysisSpecBuilder {
             1. TODAY — What to wear, whether to bring an umbrella, UV protection needed, best time for outdoor activity or gym
             2. COMMUTE — Any weather impact on the morning or evening train commute
             3. WEEK AHEAD — Flag any notable days (extreme heat, heavy rain, fire danger)
-            4. ONE SPECIFIC TIP — Something actionable based on the forecast
+            4. ACTIVITIES - Flag when is best to hang clothes for washing, when is best to walk outdoors or when not to walk outdoors
+            5. ONE SPECIFIC TIP — Something actionable based on the forecast
 
             RULES:
             - Be concise — max 150 words total
