@@ -273,7 +273,9 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "myLatest reads your upcoming events to show them on the dashboard.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "myLatest reads your sleep and heart rate data to show your health summary.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "myLatest uses Health data to update your activity and wellness information in your daily summary.\nmyLatest uses Health data to update your activity and wellness information in your daily summary.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "myLatest uses your location to find the nearest weather station.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "myLatest reads motion data to track your daily activity.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -311,7 +313,9 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "myLatest reads your upcoming events to show them on the dashboard.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "myLatest reads your sleep and heart rate data to show your health summary.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "myLatest uses Health data to update your activity and wellness information in your daily summary.\nmyLatest uses Health data to update your activity and wellness information in your daily summary.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "myLatest uses your location to find the nearest weather station.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "myLatest reads motion data to track your daily activity.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

@@ -268,6 +268,7 @@ struct ContentView: View {
 
 struct WeatherView: View {
     @AppStorage("claudeApiKey") private var claudeApiKey: String = ""
+    @AppStorage("aiProvider") private var aiProviderRaw: String = AIProvider.appleIntelligence.rawValue
     @State private var weather = MockDataService.mockWeather()
     @State private var forecastInfo: DailyForecastInfo?
     @State private var hourlyForecast: HourlyForecastInfo?
@@ -279,6 +280,16 @@ struct WeatherView: View {
     @State private var isAnalysing = false
     @State private var analysisResult: String? = nil
     @State private var showAnalysis = false
+
+    private var aiProvider: AIProvider {
+        AIProvider(rawValue: aiProviderRaw) ?? .appleIntelligence
+    }
+    private var aiIsAvailable: Bool {
+        aiProvider == .appleIntelligence || !claudeApiKey.isEmpty
+    }
+    private var poweredByLabel: String {
+        aiProvider == .claude ? "Powered by Claude" : "Powered by Apple Intelligence"
+    }
 
     var body: some View {
         NavigationStack {
@@ -355,19 +366,19 @@ struct WeatherView: View {
                     VStack(alignment: .leading, spacing: 1) {
                         Text("AI Weather Briefing")
                             .font(.headline)
-                        Text("Powered by Claude")
+                        Text(poweredByLabel)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
                 }
 
-                if claudeApiKey.isEmpty {
+                if aiProvider == .claude && claudeApiKey.isEmpty {
                     Label("Add your Claude API key in Settings to enable.", systemImage: "key.fill")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
 
-                Button(action: analyseWeatherWithClaude) {
+                Button(action: analyseWeather) {
                     HStack(spacing: 6) {
                         Image(systemName: "sparkles")
                         Text(hasLoaded ? "Get My Weather Briefing" : "Load forecast first")
@@ -376,7 +387,7 @@ struct WeatherView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 11)
                     .background(
-                        claudeApiKey.isEmpty || !hasLoaded
+                        !aiIsAvailable || !hasLoaded
                         ? LinearGradient(colors: [.gray.opacity(0.3), .gray.opacity(0.25)],
                                          startPoint: .leading, endPoint: .trailing)
                         : LinearGradient(colors: [.blue, .indigo],
@@ -385,7 +396,7 @@ struct WeatherView: View {
                     .foregroundStyle(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
-                .disabled(claudeApiKey.isEmpty || !hasLoaded)
+                .disabled(!aiIsAvailable || !hasLoaded)
             }
             .padding(16)
         }
@@ -479,17 +490,25 @@ struct WeatherView: View {
         return sections.isEmpty ? [WeatherParsedSection(title: "", body: text)] : sections
     }
 
-    private func analyseWeatherWithClaude() {
+    private func analyseWeather() {
         analysisResult = nil
         isAnalysing    = true
         showAnalysis   = true
 
         Task {
             do {
-                let result = try await ClaudeService.analyseWeather(
-                    forecastSummary: forecastSummary,
-                    apiKey: claudeApiKey
-                )
+                let result: String
+                switch aiProvider {
+                case .claude:
+                    result = try await ClaudeService.analyseWeather(
+                        forecastSummary: forecastSummary,
+                        apiKey: claudeApiKey
+                    )
+                case .appleIntelligence:
+                    result = try await AppleIntelligenceService.analyseWeather(
+                        forecastSummary: forecastSummary
+                    )
+                }
                 analysisResult = result
             } catch {
                 analysisResult = "Error: \(error.localizedDescription)"
@@ -599,6 +618,7 @@ private struct WeatherAnalysisSectionCard: View {
 struct WeatherCard: View {
     let weather: WeatherInfo
     var title: String = "Weather"
+    @State private var showCharts = false
 
     private enum TemperatureSeries: CaseIterable {
         case feelsLike
@@ -729,7 +749,14 @@ struct WeatherCard: View {
 
                 if chartObs.count >= 2 {
                     Divider()
-                    observationCharts
+                    DisclosureGroup(isExpanded: $showCharts) {
+                        observationCharts
+                            .padding(.top, 6)
+                    } label: {
+                        Label("Last 5 hours", systemImage: "chart.xyaxis.line")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
         }
@@ -739,10 +766,6 @@ struct WeatherCard: View {
 
     private var observationCharts: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Last 5 hours")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.tertiary)
-
             chartSection(title: "Temperature") {
                 temperatureChart
             }
@@ -1528,6 +1551,8 @@ struct EventRow: View {
 
 struct TrainCard: View {
     let train: TrainInfo
+    @State private var showHomeStation = true
+    @State private var showCityStation = false
     @State private var showPlannedWorks = false
 
     var body: some View {
@@ -1567,20 +1592,36 @@ struct TrainCard: View {
                     }
                 }
 
-                // ── Home station departures ───────────────────────────────
+                // ── Home station departures (collapsible) ─────────────────
                 if !train.homeStationName.isEmpty {
                     Divider()
-                    DepartureSectionView(stationName:      train.homeStationName,
-                                        departures:       train.homeStationDepartures,
-                                        splitByDirection: true)
+                    DisclosureGroup(isExpanded: $showHomeStation) {
+                        DepartureSectionView(stationName:      train.homeStationName,
+                                            departures:       train.homeStationDepartures,
+                                            splitByDirection: true,
+                                            showHeader:       false)
+                            .padding(.top, 6)
+                    } label: {
+                        Label("From \(train.homeStationName)", systemImage: "mappin.circle.fill")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
-                // ── City station departures ───────────────────────────────
+                // ── City station departures (collapsible) ─────────────────
                 if !train.cityStationName.isEmpty {
                     Divider()
-                    DepartureSectionView(stationName:      train.cityStationName,
-                                        departures:       train.cityStationDepartures,
-                                        splitByDirection: false)
+                    DisclosureGroup(isExpanded: $showCityStation) {
+                        DepartureSectionView(stationName:      train.cityStationName,
+                                            departures:       train.cityStationDepartures,
+                                            splitByDirection: false,
+                                            showHeader:       false)
+                            .padding(.top, 6)
+                    } label: {
+                        Label("From \(train.cityStationName)", systemImage: "mappin.circle.fill")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 // ── Planned works (collapsible) ───────────────────────────
@@ -1653,6 +1694,8 @@ struct DepartureSectionView: View {
     let departures: [TrainDeparture]
     /// When true the list is split into separate Inbound / Outbound sub-sections.
     var splitByDirection: Bool = false
+    /// When false, the "From <station>" header is hidden (useful when a parent DisclosureGroup already shows it).
+    var showHeader: Bool = true
 
     private var inbound:  [TrainDeparture] { departures.filter {  $0.isToCity } }
     private var outbound: [TrainDeparture] { departures.filter { !$0.isToCity } }
@@ -1660,12 +1703,14 @@ struct DepartureSectionView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // Section header
-            HStack(spacing: 5) {
-                Image(systemName: "mappin.circle.fill")
-                    .font(.caption)
-                    .foregroundStyle(Color.accentColor)
-                Text("From \(stationName)")
-                    .font(.caption.weight(.semibold))
+            if showHeader {
+                HStack(spacing: 5) {
+                    Image(systemName: "mappin.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(Color.accentColor)
+                    Text("From \(stationName)")
+                        .font(.caption.weight(.semibold))
+                }
             }
 
             if splitByDirection {
@@ -1839,12 +1884,19 @@ struct SettingsView: View {
     @AppStorage("claudeApiKey") private var claudeApiKey: String = ""
     @AppStorage("googleMapsApiKey") private var googleMapsApiKey: String = ""
     @AppStorage("drivingProvider") private var drivingProviderRaw: String = DrivingProvider.apple.rawValue
+    @AppStorage("aiProvider") private var aiProviderRaw: String = AIProvider.appleIntelligence.rawValue
     @AppStorage("userAge")      private var userAge:      String = ""
 
     private var useGoogleMaps: Binding<Bool> {
         Binding(
             get: { drivingProviderRaw == DrivingProvider.google.rawValue },
             set: { drivingProviderRaw = ($0 ? DrivingProvider.google : DrivingProvider.apple).rawValue }
+        )
+    }
+    private var useClaude: Binding<Bool> {
+        Binding(
+            get: { aiProviderRaw == AIProvider.claude.rawValue },
+            set: { aiProviderRaw = ($0 ? AIProvider.claude : AIProvider.appleIntelligence).rawValue }
         )
     }
     @AppStorage("userExtraInformation") private var userExtraInformation: String = ""
@@ -1935,18 +1987,25 @@ struct SettingsView: View {
                     Text("Used to personalise your AI health analysis, along with the current date and time.")
                 }
 
-                // ── Claude AI ─────────────────────────────────────────────
+                // ── AI Provider ──────────────────────────────────────────
                 Section {
-                    LabeledContent("API Key") {
-                        TextField("sk-ant-...", text: $claudeApiKey)
-                            .autocorrectionDisabled()
-                            .textInputAutocapitalization(.never)
-                            .multilineTextAlignment(.trailing)
+                    Toggle("Use Claude AI", isOn: useClaude)
+                    if useClaude.wrappedValue {
+                        LabeledContent("API Key") {
+                            TextField("sk-ant-...", text: $claudeApiKey)
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.never)
+                                .multilineTextAlignment(.trailing)
+                        }
                     }
                 } header: {
-                    Text("Claude AI")
+                    Text("AI Provider")
                 } footer: {
-                    Text("Your Anthropic API key for health analysis. Get one at console.anthropic.com.")
+                    if useClaude.wrappedValue {
+                        Text("Using Claude AI for health and weather analysis. Get an API key at console.anthropic.com.")
+                    } else {
+                        Text("Using Apple Intelligence (on-device) for health and weather analysis. Toggle on to use Claude AI instead.")
+                    }
                 }
 
                 // ── Weather Stations ─────────────────────────────────────

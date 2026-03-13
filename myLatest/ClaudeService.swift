@@ -7,6 +7,13 @@
 
 import Foundation
 
+// MARK: - AI Provider
+
+enum AIProvider: String {
+    case appleIntelligence
+    case claude
+}
+
 // MARK: - Claude client
 
 private enum ClaudeClient {
@@ -86,7 +93,7 @@ struct ClaudeAnalysisSpec {
     var userContent: String
 }
 
-private enum WeatherAnalysisSpecBuilder {
+enum WeatherAnalysisSpecBuilder {
     static func make(forecastSummary: String) -> ClaudeAnalysisSpec {
         let now = Date()
         let dateFmt = DateFormatter()
@@ -127,7 +134,7 @@ private enum WeatherAnalysisSpecBuilder {
     }
 }
 
-private enum HealthAnalysisSpecBuilder {
+enum HealthAnalysisSpecBuilder {
     static func make(summary: String, age: String, extraInformation: String) -> ClaudeAnalysisSpec {
         var contentParts: [String] = []
         contentParts.append("Current date and time: \(formattedCurrentDateTime())")
@@ -148,7 +155,7 @@ private enum HealthAnalysisSpecBuilder {
         )
     }
 
-    private static func formattedCurrentDateTime() -> String {
+    static func formattedCurrentDateTime() -> String {
         let now = Date()
         let calendar = Calendar.current
         let day = calendar.component(.day, from: now)

@@ -17,11 +17,22 @@ struct HealthView: View {
     @State private var lastUpdatedAt: Date?
 
     @AppStorage("claudeApiKey") private var claudeApiKey: String = ""
+    @AppStorage("aiProvider") private var aiProviderRaw: String = AIProvider.appleIntelligence.rawValue
     @AppStorage("userAge")      private var userAge:      String = ""
     @AppStorage("userExtraInformation") private var userExtraInformation: String = ""
     @State private var isAnalysing    = false
     @State private var analysisResult: String? = nil
     @State private var showAnalysis   = false
+
+    private var aiProvider: AIProvider {
+        AIProvider(rawValue: aiProviderRaw) ?? .appleIntelligence
+    }
+    private var aiIsAvailable: Bool {
+        aiProvider == .appleIntelligence || !claudeApiKey.isEmpty
+    }
+    private var poweredByLabel: String {
+        aiProvider == .claude ? "Powered by Claude" : "Powered by Apple Intelligence"
+    }
 
     var body: some View {
         NavigationStack {
@@ -108,19 +119,19 @@ struct HealthView: View {
                     VStack(alignment: .leading, spacing: 1) {
                         Text("AI Health Briefing")
                             .font(.headline)
-                        Text("Powered by Claude")
+                        Text(poweredByLabel)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
                 }
 
-                if claudeApiKey.isEmpty {
+                if aiProvider == .claude && claudeApiKey.isEmpty {
                     Label("Add your Claude API key in Settings to enable.", systemImage: "key.fill")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
 
-                Button(action: analyseWithClaude) {
+                Button(action: analyseHealth) {
                     HStack(spacing: 6) {
                         Image(systemName: "sparkles")
                         Text("Get My Health Briefing")
@@ -129,7 +140,7 @@ struct HealthView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 11)
                     .background(
-                        claudeApiKey.isEmpty
+                        !aiIsAvailable
                         ? LinearGradient(colors: [.gray.opacity(0.3), .gray.opacity(0.25)],
                                          startPoint: .leading, endPoint: .trailing)
                         : LinearGradient(colors: [.purple, .pink],
@@ -138,7 +149,7 @@ struct HealthView: View {
                     .foregroundStyle(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
-                .disabled(claudeApiKey.isEmpty)
+                .disabled(!aiIsAvailable)
             }
             .padding(16)
         }
@@ -236,7 +247,7 @@ struct HealthView: View {
         return sections.isEmpty ? [ParsedSection(title: "", body: text)] : sections
     }
 
-    private func analyseWithClaude() {
+    private func analyseHealth() {
         guard let data = healthData else { return }
         analysisResult = nil
         isAnalysing    = true
@@ -245,12 +256,22 @@ struct HealthView: View {
         Task {
             let summary = HealthService.shared.summaryText(for: data)
             do {
-                let result = try await ClaudeService.analyseHealthData(
-                    summary:          summary,
-                    age:              userAge,
-                    extraInformation: userExtraInformation,
-                    apiKey:           claudeApiKey
-                )
+                let result: String
+                switch aiProvider {
+                case .claude:
+                    result = try await ClaudeService.analyseHealthData(
+                        summary:          summary,
+                        age:              userAge,
+                        extraInformation: userExtraInformation,
+                        apiKey:           claudeApiKey
+                    )
+                case .appleIntelligence:
+                    result = try await AppleIntelligenceService.analyseHealthData(
+                        summary:          summary,
+                        age:              userAge,
+                        extraInformation: userExtraInformation
+                    )
+                }
                 analysisResult = result
             } catch {
                 analysisResult = "Error: \(error.localizedDescription)"
