@@ -81,7 +81,9 @@ private extension DashboardData {
                 homeStationName:       homeStation.isEmpty ? "Home station" : homeStation,
                 cityStationName:       cityStation.isEmpty ? "Flinders Street" : cityStation,
                 homeStationDepartures: placeholderDepartures(base: base + 300),
+                homeStationAllDepartures: placeholderDepartures(base: base + 300),
                 cityStationDepartures: placeholderDepartures(base: base + 600),
+                cityStationAllDepartures: placeholderDepartures(base: base + 600),
                 melbourneTimeAtFetch:  "--:-- --"
             ),
             drivingEstimates: MockDataService.mockDrivingTimes(for: drivingDestinations),
@@ -1554,6 +1556,62 @@ struct TrainCard: View {
     @State private var showHomeStation = true
     @State private var showCityStation = false
     @State private var showPlannedWorks = false
+    @State private var planAheadEnabled = false
+    @State private var planAheadTime = Date()
+    @State private var cityPlanAheadEnabled = false
+    @State private var cityPlanAheadTime = Date()
+
+    /// Seconds-since-midnight for the chosen plan-ahead time in Melbourne.
+    private var planAheadChosenSeconds: Int {
+        let mel = TimeZone(identifier: "Australia/Melbourne")!
+        var cal = Calendar.current
+        cal.timeZone = mel
+        let comps = cal.dateComponents([.hour, .minute, .second], from: planAheadTime)
+        return (comps.hour ?? 0) * 3600 + (comps.minute ?? 0) * 60 + (comps.second ?? 0)
+    }
+
+    /// Departures filtered to 1h before / 2h after the chosen plan-ahead time.
+    private var planAheadDepartures: [TrainDeparture] {
+        let minSeconds = planAheadChosenSeconds - 3600
+        let maxSeconds = planAheadChosenSeconds + 7200
+        return train.homeStationAllDepartures.filter {
+            $0.estimatedDepartureSeconds >= minSeconds &&
+            $0.estimatedDepartureSeconds <= maxSeconds
+        }
+    }
+
+    /// Human-readable label for the plan-ahead time window.
+    private var planAheadWindowLabel: String {
+        let fromStr = TrainService.secondsToTimeString(planAheadChosenSeconds - 3600)
+        let toStr   = TrainService.secondsToTimeString(planAheadChosenSeconds + 7200)
+        return "\(fromStr) – \(toStr)"
+    }
+
+    // ── City station Plan Ahead ──────────────────────────────────────
+
+    private var cityPlanAheadChosenSeconds: Int {
+        let mel = TimeZone(identifier: "Australia/Melbourne")!
+        var cal = Calendar.current
+        cal.timeZone = mel
+        let comps = cal.dateComponents([.hour, .minute, .second], from: cityPlanAheadTime)
+        return (comps.hour ?? 0) * 3600 + (comps.minute ?? 0) * 60 + (comps.second ?? 0)
+    }
+
+    /// City outbound departures filtered to 1h before / 2h after the chosen time.
+    private var cityPlanAheadDepartures: [TrainDeparture] {
+        let minSeconds = cityPlanAheadChosenSeconds - 3600
+        let maxSeconds = cityPlanAheadChosenSeconds + 7200
+        return train.cityStationAllDepartures.filter {
+            $0.estimatedDepartureSeconds >= minSeconds &&
+            $0.estimatedDepartureSeconds <= maxSeconds
+        }
+    }
+
+    private var cityPlanAheadWindowLabel: String {
+        let fromStr = TrainService.secondsToTimeString(cityPlanAheadChosenSeconds - 3600)
+        let toStr   = TrainService.secondsToTimeString(cityPlanAheadChosenSeconds + 7200)
+        return "\(fromStr) – \(toStr)"
+    }
 
     var body: some View {
         CardContainer {
@@ -1596,11 +1654,50 @@ struct TrainCard: View {
                 if !train.homeStationName.isEmpty {
                     Divider()
                     DisclosureGroup(isExpanded: $showHomeStation) {
-                        DepartureSectionView(stationName:      train.homeStationName,
-                                            departures:       train.homeStationDepartures,
-                                            splitByDirection: true,
-                                            showHeader:       false)
-                            .padding(.top, 6)
+                        VStack(alignment: .leading, spacing: 8) {
+                            // Current departures
+                            DepartureSectionView(stationName:      train.homeStationName,
+                                                departures:       train.homeStationDepartures,
+                                                splitByDirection: true,
+                                                showHeader:       false)
+
+                            Divider()
+
+                            // Plan Ahead toggle + time picker
+                            HStack {
+                                Label("Plan Ahead", systemImage: "clock.arrow.2.circlepath")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Toggle("", isOn: $planAheadEnabled)
+                                    .labelsHidden()
+                                    .scaleEffect(0.8)
+                            }
+
+                            if planAheadEnabled {
+                                HStack(spacing: 8) {
+                                    Text("Departures around")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    DatePicker("",
+                                               selection: $planAheadTime,
+                                               in: Date()...,
+                                               displayedComponents: .hourAndMinute)
+                                        .labelsHidden()
+                                        .environment(\.timeZone, TimeZone(identifier: "Australia/Melbourne")!)
+                                }
+
+                                Text("Showing: \(planAheadWindowLabel)")
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+
+                                DepartureSectionView(stationName:      train.homeStationName,
+                                                    departures:       planAheadDepartures,
+                                                    splitByDirection: true,
+                                                    showHeader:       false)
+                            }
+                        }
+                        .padding(.top, 6)
                     } label: {
                         Label("From \(train.homeStationName)", systemImage: "mappin.circle.fill")
                             .font(.caption.weight(.semibold))
@@ -1612,11 +1709,49 @@ struct TrainCard: View {
                 if !train.cityStationName.isEmpty {
                     Divider()
                     DisclosureGroup(isExpanded: $showCityStation) {
-                        DepartureSectionView(stationName:      train.cityStationName,
-                                            departures:       train.cityStationDepartures,
-                                            splitByDirection: false,
-                                            showHeader:       false)
-                            .padding(.top, 6)
+                        VStack(alignment: .leading, spacing: 8) {
+                            DepartureSectionView(stationName:      train.cityStationName,
+                                                departures:       train.cityStationDepartures,
+                                                splitByDirection: false,
+                                                showHeader:       false)
+
+                            Divider()
+
+                            // Plan Ahead toggle + time picker
+                            HStack {
+                                Label("Plan Ahead", systemImage: "clock.arrow.2.circlepath")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Toggle("", isOn: $cityPlanAheadEnabled)
+                                    .labelsHidden()
+                                    .scaleEffect(0.8)
+                            }
+
+                            if cityPlanAheadEnabled {
+                                HStack(spacing: 8) {
+                                    Text("Departures around")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    DatePicker("",
+                                               selection: $cityPlanAheadTime,
+                                               in: Date()...,
+                                               displayedComponents: .hourAndMinute)
+                                        .labelsHidden()
+                                        .environment(\.timeZone, TimeZone(identifier: "Australia/Melbourne")!)
+                                }
+
+                                Text("Showing: \(cityPlanAheadWindowLabel)")
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+
+                                DepartureSectionView(stationName:      train.cityStationName,
+                                                    departures:       cityPlanAheadDepartures,
+                                                    splitByDirection: false,
+                                                    showHeader:       false)
+                            }
+                        }
+                        .padding(.top, 6)
                     } label: {
                         Label("From \(train.cityStationName)", systemImage: "mappin.circle.fill")
                             .font(.caption.weight(.semibold))

@@ -59,11 +59,24 @@ final class TrainService {
                                               station: homeStation,
                                               currentSeconds: nowSeconds,
                                               toCityOnly: nil)
+        // Home station: ALL departures for the day (no time filter, unlimited)
+        // Used by the "Plan Ahead" feature so the user can browse a future time window.
+        let homeAllDeps = filterAndMapDepartures(depsResp.entries,
+                                                  station: homeStation,
+                                                  currentSeconds: 0,
+                                                  toCityOnly: nil,
+                                                  limit: nil)
         // City station: outbound only (to_city=0 — heading away from the city)
         let cityDeps = filterAndMapDepartures(depsResp.entries,
                                               station: cityStation,
                                               currentSeconds: nowSeconds,
                                               toCityOnly: false)
+        // City station: ALL outbound departures for the day (no time filter, unlimited)
+        let cityAllDeps = filterAndMapDepartures(depsResp.entries,
+                                                  station: cityStation,
+                                                  currentSeconds: 0,
+                                                  toCityOnly: false,
+                                                  limit: nil)
 
         guard let lineData else {
             // Line name not matched — return a minimal result with departures only.
@@ -78,7 +91,9 @@ final class TrainService {
                 homeStationName:      homeStation,
                 cityStationName:      cityStation,
                 homeStationDepartures: homeDeps,
+                homeStationAllDepartures: homeAllDeps,
                 cityStationDepartures: cityDeps,
+                cityStationAllDepartures: cityAllDeps,
                 melbourneTimeAtFetch: melbourneTime
             )
         }
@@ -129,7 +144,9 @@ final class TrainService {
             homeStationName:      homeStation,
             cityStationName:      cityStation,
             homeStationDepartures: homeDeps,
+            homeStationAllDepartures: homeAllDeps,
             cityStationDepartures: cityDeps,
+            cityStationAllDepartures: cityAllDeps,
             melbourneTimeAtFetch: melbourneTime
         )
     }
@@ -137,14 +154,16 @@ final class TrainService {
     // MARK: - Private helpers
 
     /// - Parameter toCityOnly: `true` = inbound only, `false` = outbound only, `nil` = both directions.
+    /// - Parameter limit: Maximum number of results.  Pass `nil` for unlimited.
     private func filterAndMapDepartures(_ entries: [DepartureAPIEntry],
                                         station: String,
                                         currentSeconds: Int,
-                                        toCityOnly: Bool?) -> [TrainDeparture] {
+                                        toCityOnly: Bool?,
+                                        limit: Int? = 10) -> [TrainDeparture] {
         guard !station.isEmpty else { return [] }
         let query = station.lowercased()
 
-        return entries
+        let filtered = entries
             .filter { entry in
                 // Case-insensitive partial match (bidirectional)
                 let name = entry.station.lowercased()
@@ -160,7 +179,9 @@ final class TrainService {
                 return true
             }
             .sorted { $0.estimatedDepartureTimeSeconds < $1.estimatedDepartureTimeSeconds }
-            .prefix(10)
+
+        let limited = limit.map { Array(filtered.prefix($0)) } ?? filtered
+        return limited
             .map { entry in
                 TrainDeparture(
                     station:                entry.station,

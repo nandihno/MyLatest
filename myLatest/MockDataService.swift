@@ -207,7 +207,9 @@ final class MockDataService {
             homeStationName:       home,
             cityStationName:       city,
             homeStationDepartures: mockDepartures(station: home, toCity: true,  baseSeconds: base + 300),
+            homeStationAllDepartures: mockDepartures(station: home, toCity: true, baseSeconds: base + 300),
             cityStationDepartures: mockDepartures(station: city, toCity: false, baseSeconds: base + 600),
+            cityStationAllDepartures: mockDepartures(station: city, toCity: false, baseSeconds: base + 600),
             melbourneTimeAtFetch:  TrainService.currentTimeString()
         )
     }

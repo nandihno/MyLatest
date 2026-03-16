@@ -231,7 +231,11 @@ struct TrainInfo: Identifiable {
     let homeStationName: String
     let cityStationName: String
     let homeStationDepartures: [TrainDeparture]
+    /// All home-station departures for the day (no time filter) — used by "Plan Ahead".
+    let homeStationAllDepartures: [TrainDeparture]
     let cityStationDepartures: [TrainDeparture]
+    /// All city-station outbound departures for the day (no time filter) — used by "Plan Ahead".
+    let cityStationAllDepartures: [TrainDeparture]
 
     /// Melbourne local time at the moment data was fetched (e.g. "8:45 AM").
     let melbourneTimeAtFetch: String
