@@ -2041,30 +2041,46 @@ struct SettingsView: View {
             Form {
                 // ── Train ────────────────────────────────────────────────
                 Section {
-                    LabeledContent("Line") {
-                        TextField("e.g. Alamein", text: $trainLineName)
-                            .autocorrectionDisabled()
-                            .multilineTextAlignment(.trailing)
+                    NavigationLink {
+                        TrainLinePickerView(selectedLineName: $trainLineName)
+                    } label: {
+                        LabeledContent("Line") {
+                            Text(trainLineName.isEmpty ? "Not set" : trainLineName)
+                                .foregroundStyle(trainLineName.isEmpty ? .secondary : .primary)
+                        }
                     }
-                    LabeledContent("Home Station") {
-                        TextField("e.g. Willison", text: $homeStation)
-                            .autocorrectionDisabled()
-                            .multilineTextAlignment(.trailing)
+
+                    NavigationLink {
+                        StationPickerView(title: "Home Station", selectedStation: $homeStation)
+                    } label: {
+                        LabeledContent("Home Station") {
+                            Text(homeStation.isEmpty ? "Not set" : homeStation)
+                                .foregroundStyle(homeStation.isEmpty ? .secondary : .primary)
+                        }
                     }
-                    LabeledContent("City Station") {
-                        TextField("e.g. Flinders Street", text: $cityStation)
-                            .autocorrectionDisabled()
-                            .multilineTextAlignment(.trailing)
+                    .disabled(trainLineName.isEmpty)
+
+                    NavigationLink {
+                        StationPickerView(title: "City Station", selectedStation: $cityStation)
+                    } label: {
+                        LabeledContent("City Station") {
+                            Text(cityStation.isEmpty ? "Not set" : cityStation)
+                                .foregroundStyle(cityStation.isEmpty ? .secondary : .primary)
+                        }
                     }
+                    .disabled(trainLineName.isEmpty)
                 } header: {
                     Text("Train")
                 } footer: {
                     VStack(alignment: .leading, spacing: 4) {
-                        Label("**Line** — the Metro Trains Melbourne line name (e.g. Alamein, Belgrave, Craigieburn).", systemImage: "tram.fill")
-                        Label("**Home Station** — your local station for outbound departures.", systemImage: "house.fill")
-                        Label("**City Station** — your city terminus, defaults to Flinders Street.", systemImage: "building.2.fill")
-                        Text("Names are matched case-insensitively. Partial names accepted (e.g. \"Flinders\" matches \"Flinders Street\").")
-                            .padding(.top, 2)
+                        Label("**Line** — tap to choose from all Metro Trains Melbourne lines.", systemImage: "tram.fill")
+                        Label("**Home Station** — your local station for departures.", systemImage: "house.fill")
+                        Label("**City Station** — your city station for return departures.", systemImage: "building.2.fill")
+                        if trainLineName.isEmpty {
+                            Text("Select a train line first to enable station selection.")
+                                .foregroundStyle(.orange)
+                                .padding(.top, 2)
+                        }
                     }
                     .font(.footnote)
                 }
