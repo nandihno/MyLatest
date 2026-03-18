@@ -12,6 +12,7 @@ struct myLatestApp: App {
     /// read it with @Environment(WeatherStationStore.self).
     @State private var stationStore = WeatherStationStore.shared
     @State private var drivingDestinationStore = DrivingDestinationStore.shared
+    @State private var favouriteBusStopStore = FavouriteBusStopStore.shared
 
     var body: some Scene {
         WindowGroup {
@@ -28,6 +29,7 @@ struct myLatestApp: App {
             }
             .environment(stationStore)
             .environment(drivingDestinationStore)
+            .environment(favouriteBusStopStore)
         }
     }
 }

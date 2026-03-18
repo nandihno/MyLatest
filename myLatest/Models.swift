@@ -279,6 +279,7 @@ struct DashboardData {
     let weather: WeatherInfo
     let upcomingEvents: [CalendarEvent]
     let trainInfo: TrainInfo
+    let busInfo: BusInfo?
     let drivingEstimates: [DrivingTimeEstimate]
     let fetchedAt: Date
 }

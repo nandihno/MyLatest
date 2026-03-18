@@ -86,6 +86,7 @@ private extension DashboardData {
                 cityStationAllDepartures: placeholderDepartures(base: base + 600),
                 melbourneTimeAtFetch:  "--:-- --"
             ),
+            busInfo: nil,
             drivingEstimates: MockDataService.mockDrivingTimes(for: drivingDestinations),
             fetchedAt: now
         )
@@ -111,6 +112,7 @@ struct ContentView: View {
     @AppStorage("cityStation")   private var cityStation:   String = "Flinders Street"
     @AppStorage("googleMapsApiKey") private var googleMapsApiKey: String = ""
     @AppStorage("drivingProvider") private var drivingProviderRaw: String = DrivingProvider.apple.rawValue
+    @AppStorage("transportMode") private var transportModeRaw: String = TransportMode.victorian.rawValue
 
     @Environment(DrivingDestinationStore.self) private var drivingDestinationStore
     @State private var loadState: LoadState = .idle
@@ -118,6 +120,10 @@ struct ContentView: View {
 
     private var drivingProvider: DrivingProvider {
         DrivingProvider(rawValue: drivingProviderRaw) ?? .apple
+    }
+
+    private var transportMode: TransportMode {
+        TransportMode(rawValue: transportModeRaw) ?? .victorian
     }
 
     private var displayData: DashboardData {
@@ -133,6 +139,7 @@ struct ContentView: View {
                 VStack(spacing: 20) {
                     fetchButton
                     statusBanner
+                    gtfsProgressBanner
                     cardsStack
                 }
                 .padding()
@@ -209,11 +216,46 @@ struct ContentView: View {
         }
     }
 
+    // MARK: - GTFS download progress banner
+
+    @ViewBuilder
+    private var gtfsProgressBanner: some View {
+        let progress = GTFSDownloadProgress.shared
+        if progress.isActive {
+            HStack(spacing: 10) {
+                ProgressView()
+                    .scaleEffect(0.8)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(progress.stage)
+                        .font(.caption.bold())
+                    if !progress.detail.isEmpty {
+                        Text(progress.detail)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    Text("This only happens once.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .italic()
+                }
+                Spacer()
+            }
+            .padding(12)
+            .background(Color.accentColor.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .transition(.opacity.combined(with: .move(edge: .top)))
+        }
+    }
+
     // MARK: - Cards stack (always visible; redacted until data arrives)
 
     private var cardsStack: some View {
         VStack(spacing: 20) {
-            TrainCard(train: displayData.trainInfo)
+            if transportMode == .victorian {
+                TrainCard(train: displayData.trainInfo)
+            } else {
+                BusCard(busInfo: displayData.busInfo ?? BusInfo.placeholder())
+            }
             DrivingTimesCard(estimates: displayData.drivingEstimates, provider: drivingProvider)
             CalendarCard(events: displayData.upcomingEvents)
         }
@@ -246,6 +288,7 @@ struct ContentView: View {
                 trainLineName: trainLineName,
                 homeStation:   homeStation,
                 cityStation:   cityStation,
+                transportMode: transportMode,
                 drivingProvider: drivingProvider,
                 googleMapsApiKey: googleMapsApiKey,
                 includeWeather: false
@@ -2006,12 +2049,256 @@ struct CardContainer<Content: View>: View {
     }
 }
 
+// MARK: - Bus Card
+
+struct BusCard: View {
+    let busInfo: BusInfo
+
+    var body: some View {
+        CardContainer {
+            VStack(alignment: .leading, spacing: 12) {
+                // Header
+                HStack {
+                    Label("Bus Departures", systemImage: "bus.fill")
+                        .font(.headline)
+                    Spacer()
+                    Text(busInfo.brisbaneTimeAtFetch)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                if !busInfo.locationAvailable {
+                    Label("Location unavailable. Enable Location Services to see nearby bus stops.",
+                          systemImage: "location.slash.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(.orange)
+                } else if busInfo.nearbyStops.isEmpty && busInfo.favouriteStops.isEmpty {
+                    Label("No bus stops found within 300m. Add favourite stops in Settings.",
+                          systemImage: "mappin.slash")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    // Alerts
+                    ForEach(busInfo.alerts) { alert in
+                        BusAlertRow(alert: alert)
+                    }
+
+                    // Nearby stops with departures
+                    if !busInfo.nearbyStops.isEmpty {
+                        Label("Nearby", systemImage: "location.fill")
+                            .font(.caption.bold())
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 4)
+                        ForEach(busInfo.nearbyStops) { stop in
+                            BusStopSection(stop: stop)
+                        }
+                    }
+
+                    // Favourite stops
+                    if !busInfo.favouriteStops.isEmpty {
+                        if !busInfo.nearbyStops.isEmpty {
+                            Divider()
+                                .padding(.vertical, 4)
+                        }
+                        Label("Favourites", systemImage: "star.fill")
+                            .font(.caption.bold())
+                            .foregroundStyle(.orange)
+                        ForEach(busInfo.favouriteStops) { stop in
+                            BusStopSection(stop: stop)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Bus Alert Row
+
+struct BusAlertRow: View {
+    let alert: BusAlert
+
+    @State private var isExpanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: alert.severity.symbolName)
+                    .foregroundStyle(alertColor)
+                    .font(.subheadline)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(alert.effect)
+                        .font(.caption.bold())
+                        .foregroundStyle(alertColor)
+                    Text(alert.headerText)
+                        .font(.caption)
+                        .lineLimit(isExpanded ? nil : 2)
+                }
+
+                Spacer()
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { withAnimation { isExpanded.toggle() } }
+
+            if isExpanded, let desc = alert.descriptionText {
+                Text(desc)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 28)
+            }
+        }
+        .padding(8)
+        .background(alertColor.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var alertColor: Color {
+        switch alert.severity {
+        case .severe:  return .red
+        case .warning: return .orange
+        case .info:    return .blue
+        }
+    }
+}
+
+// MARK: - Bus Stop Section
+
+struct BusStopSection: View {
+    let stop: NearbyBusStop
+
+    @State private var isExpanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Stop header — tappable to collapse/expand
+            Button {
+                withAnimation(.easeInOut(duration: 0.25)) { isExpanded.toggle() }
+            } label: {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(stop.stopName)
+                            .font(.subheadline.bold())
+                        if let code = stop.stopCode {
+                            Text("Stop #\(code)")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer()
+                    Text("\(stop.distanceMeters)m away")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color(.tertiarySystemBackground))
+                        .clipShape(Capsule())
+                    Image(systemName: "chevron.right")
+                        .font(.caption.bold())
+                        .foregroundStyle(.secondary)
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                }
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                Divider()
+
+                // Departure rows
+                ForEach(stop.departures) { departure in
+                    BusDepartureRow(departure: departure)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Bus Departure Row
+
+struct BusDepartureRow: View {
+    let departure: BusDeparture
+
+    var body: some View {
+        HStack(spacing: 10) {
+            // Route badge
+            Text(departure.routeShortName)
+                .font(.caption.bold().monospacedDigit())
+                .foregroundStyle(.white)
+                .frame(minWidth: 36)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 4)
+                .background(Color.accentColor)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+
+            // Headsign / route name
+            VStack(alignment: .leading, spacing: 1) {
+                Text(departure.headsign ?? departure.routeLongName)
+                    .font(.caption)
+                    .lineLimit(1)
+                timeDetailLine
+            }
+
+            Spacer()
+
+            // Minutes away + status
+            VStack(alignment: .trailing, spacing: 2) {
+                HStack(spacing: 4) {
+                    Text("\(departure.minutesAway)")
+                        .font(.subheadline.bold().monospacedDigit())
+                    Text("min")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                Text(departure.status.rawValue)
+                    .font(.caption2.bold())
+                    .foregroundStyle(statusColor)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    @ViewBuilder
+    private var timeDetailLine: some View {
+        HStack(spacing: 4) {
+            Text("Sched \(departure.scheduledTime)")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+            if let predicted = departure.predictedTime {
+                Text("Pred \(predicted)")
+                    .font(.caption2)
+                    .foregroundStyle(statusColor)
+            }
+
+            if departure.delaySeconds != 0 && departure.status != .noData {
+                let delayStr = departure.delaySeconds > 0
+                    ? "+\(departure.delaySeconds)s"
+                    : "\(departure.delaySeconds)s"
+                Text("Delay: \(delayStr)")
+                    .font(.caption2)
+                    .foregroundStyle(statusColor)
+            }
+        }
+    }
+
+    private var statusColor: Color {
+        switch departure.status {
+        case .onTime:  return .green
+        case .early:   return .blue
+        case .late:    return .orange
+        case .noData:  return .secondary
+        case .skipped: return .red
+        }
+    }
+}
+
 // MARK: - Settings View
 
 struct SettingsView: View {
     @Binding var trainLineName: String
     @AppStorage("homeStation") private var homeStation: String = ""
     @AppStorage("cityStation") private var cityStation: String = "Flinders Street"
+    @AppStorage("transportMode") private var transportModeRaw: String = TransportMode.victorian.rawValue
 
     @Environment(\.dismiss) private var dismiss
     @Environment(WeatherStationStore.self) private var stationStore
@@ -2039,50 +2326,92 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                // ── Train ────────────────────────────────────────────────
+                // ── Transport Mode ─────────────────────────────────────
                 Section {
-                    NavigationLink {
-                        TrainLinePickerView(selectedLineName: $trainLineName)
-                    } label: {
-                        LabeledContent("Line") {
-                            Text(trainLineName.isEmpty ? "Not set" : trainLineName)
-                                .foregroundStyle(trainLineName.isEmpty ? .secondary : .primary)
-                        }
+                    Picker("Region", selection: $transportModeRaw) {
+                        Text("Victorian Transport").tag(TransportMode.victorian.rawValue)
+                        Text("Queensland Transport").tag(TransportMode.queensland.rawValue)
                     }
-
-                    NavigationLink {
-                        StationPickerView(title: "Home Station", selectedStation: $homeStation)
-                    } label: {
-                        LabeledContent("Home Station") {
-                            Text(homeStation.isEmpty ? "Not set" : homeStation)
-                                .foregroundStyle(homeStation.isEmpty ? .secondary : .primary)
-                        }
-                    }
-                    .disabled(trainLineName.isEmpty)
-
-                    NavigationLink {
-                        StationPickerView(title: "City Station", selectedStation: $cityStation)
-                    } label: {
-                        LabeledContent("City Station") {
-                            Text(cityStation.isEmpty ? "Not set" : cityStation)
-                                .foregroundStyle(cityStation.isEmpty ? .secondary : .primary)
-                        }
-                    }
-                    .disabled(trainLineName.isEmpty)
+                    .pickerStyle(.segmented)
                 } header: {
-                    Text("Train")
+                    Text("Transport Region")
                 } footer: {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Label("**Line** — tap to choose from all Metro Trains Melbourne lines.", systemImage: "tram.fill")
-                        Label("**Home Station** — your local station for departures.", systemImage: "house.fill")
-                        Label("**City Station** — your city station for return departures.", systemImage: "building.2.fill")
-                        if trainLineName.isEmpty {
-                            Text("Select a train line first to enable station selection.")
-                                .foregroundStyle(.orange)
-                                .padding(.top, 2)
-                        }
+                    if transportModeRaw == TransportMode.victorian.rawValue {
+                        Text("Showing Metro Trains Melbourne in the Commuting section.")
+                    } else {
+                        Text("Showing SEQ bus departures near your location in the Commuting section.")
                     }
-                    .font(.footnote)
+                }
+
+                // ── Train (Victorian only) ─────────────────────────────
+                if transportModeRaw == TransportMode.victorian.rawValue {
+                    Section {
+                        NavigationLink {
+                            TrainLinePickerView(selectedLineName: $trainLineName)
+                        } label: {
+                            LabeledContent("Line") {
+                                Text(trainLineName.isEmpty ? "Not set" : trainLineName)
+                                    .foregroundStyle(trainLineName.isEmpty ? .secondary : .primary)
+                            }
+                        }
+
+                        NavigationLink {
+                            StationPickerView(title: "Home Station", selectedStation: $homeStation)
+                        } label: {
+                            LabeledContent("Home Station") {
+                                Text(homeStation.isEmpty ? "Not set" : homeStation)
+                                    .foregroundStyle(homeStation.isEmpty ? .secondary : .primary)
+                            }
+                        }
+                        .disabled(trainLineName.isEmpty)
+
+                        NavigationLink {
+                            StationPickerView(title: "City Station", selectedStation: $cityStation)
+                        } label: {
+                            LabeledContent("City Station") {
+                                Text(cityStation.isEmpty ? "Not set" : cityStation)
+                                    .foregroundStyle(cityStation.isEmpty ? .secondary : .primary)
+                            }
+                        }
+                        .disabled(trainLineName.isEmpty)
+                    } header: {
+                        Text("Train")
+                    } footer: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Label("**Line** — tap to choose from all Metro Trains Melbourne lines.", systemImage: "tram.fill")
+                            Label("**Home Station** — your local station for departures.", systemImage: "house.fill")
+                            Label("**City Station** — your city station for return departures.", systemImage: "building.2.fill")
+                            if trainLineName.isEmpty {
+                                Text("Select a train line first to enable station selection.")
+                                    .foregroundStyle(.orange)
+                                    .padding(.top, 2)
+                            }
+                        }
+                        .font(.footnote)
+                    }
+                }
+
+                // ── Queensland Bus Info ────────────────────────────────
+                if transportModeRaw == TransportMode.queensland.rawValue {
+                    Section {
+                        NavigationLink {
+                            FavouriteBusStopsView()
+                        } label: {
+                            HStack {
+                                Text("Favourite Stops")
+                                Spacer()
+                                Text("\(FavouriteBusStopStore.shared.all.count)")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        Label("Nearby stops within 300m are also shown automatically.", systemImage: "location.fill")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    } header: {
+                        Text("SEQ Bus")
+                    } footer: {
+                        Text("Data provided by TransLink. Schedule and real-time data is downloaded on first use (~26 MB). Times are displayed in Queensland time (AEST, UTC+10).")
+                    }
                 }
 
                 // ── Driving ──────────────────────────────────────────────
@@ -2202,6 +2531,7 @@ struct SettingsView: View {
     let train   = MockDataService.mockTrainInfo()
     let data    = DashboardData(weather: weather, upcomingEvents: events,
                                 trainInfo: train,
+                                busInfo: nil,
                                 drivingEstimates: MockDataService.mockDrivingTimes(for: [
                                     DrivingDestination(name: "Office", address: "120 Spencer Street, Melbourne VIC 3000, Australia", latitude: -37.8175, longitude: 144.9520),
                                     DrivingDestination(name: "Airport", address: "Arrival Drive, Melbourne Airport VIC 3045, Australia", latitude: -37.6690, longitude: 144.8410)

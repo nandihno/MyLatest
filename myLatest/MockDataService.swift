@@ -9,6 +9,7 @@
 //
 
 import Foundation
+import CoreLocation
 
 final class MockDataService {
     static let shared = MockDataService()
@@ -30,6 +31,7 @@ final class MockDataService {
     func fetchDashboard(trainLineName: String,
                         homeStation: String,
                         cityStation: String,
+                        transportMode: TransportMode = .victorian,
                         drivingProvider: DrivingProvider = .apple,
                         googleMapsApiKey: String = "",
                         includeWeather: Bool = true) async throws -> DashboardData {
@@ -52,10 +54,19 @@ final class MockDataService {
         let train = try await trainTask
         let driving = await drivingTask
 
+        // Bus info — only fetched when Queensland transport mode is active
+        let busInfo: BusInfo?
+        if transportMode == .queensland {
+            busInfo = await fetchBusInfoSafely()
+        } else {
+            busInfo = nil
+        }
+
         return DashboardData(
             weather:        weather,
             upcomingEvents: events,
             trainInfo:      train,
+            busInfo:        busInfo,
             drivingEstimates: driving,
             fetchedAt:      Date()
         )
@@ -105,6 +116,32 @@ final class MockDataService {
             return Self.mockTrainInfo(lineName: lineName,
                                       homeStation: homeStation,
                                       cityStation: cityStation)
+        }
+    }
+
+    // MARK: - Bus (real TransLink GTFS with fallback)
+
+    private func fetchBusInfoSafely() async -> BusInfo {
+        do {
+            let locationManager = LocationManager()
+            let location = try await locationManager.currentLocation()
+            return try await BusService.shared.fetchBusInfo(
+                latitude: location.coordinate.latitude,
+                longitude: location.coordinate.longitude
+            )
+        } catch {
+            if error is LocationError {
+                print("⚠️ BusService: location unavailable — \(error.localizedDescription)")
+                return BusInfo.noLocation()
+            }
+            print("⚠️ BusService failed (\(error.localizedDescription)) — returning empty bus info.")
+            return BusInfo(
+                nearbyStops: [],
+                favouriteStops: [],
+                alerts: [],
+                brisbaneTimeAtFetch: "--:-- --",
+                locationAvailable: true
+            )
         }
     }
 
