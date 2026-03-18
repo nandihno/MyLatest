@@ -14,12 +14,14 @@ import Foundation
 // non-line keys like "disruptions" whose values are arrays, not line objects.
 // WebsiteDataResponse silently skips any key that can't be decoded as a line.
 struct WebsiteDataResponse: Decodable {
-    let values: [TrainLineAPIData]
+    /// Each entry pairs the numeric line ID (the JSON key, e.g. "97") with its data.
+    let lines: [(lineId: String, data: TrainLineAPIData)]
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: _AnyKey.self)
-        values = container.allKeys.compactMap {
-            try? container.decode(TrainLineAPIData.self, forKey: $0)
+        lines = container.allKeys.compactMap { key in
+            guard let data = try? container.decode(TrainLineAPIData.self, forKey: key) else { return nil }
+            return (lineId: key.stringValue, data: data)
         }
     }
 
@@ -138,6 +140,39 @@ struct PlannedWorksAPIBody: Decodable {
 
 struct DeparturesAPIResponse: Decodable {
     let entries: [DepartureAPIEntry]
+}
+
+// MARK: - op_timetable_<line_id>.json
+
+struct TimetableAPIEntry: Decodable {
+    let station: String
+    let toCity: String              // "1" = inbound, "0" = outbound
+    let timeSeconds: String         // seconds-since-midnight (string)
+    let timeStr: String             // e.g. "6:20 AM"
+    let isArrival: String           // "0" = departure, "1" = arrival
+    let platform: String
+    let date: String                // e.g. "2026-03-18"
+
+    enum CodingKeys: String, CodingKey {
+        case station
+        case toCity      = "to_city"
+        case timeSeconds = "time_seconds"
+        case timeStr     = "time_str"
+        case isArrival   = "is_arrival"
+        case platform
+        case date
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        station    = try  c.decode(String.self, forKey: .station)
+        toCity     = (try? c.decode(String.self, forKey: .toCity))     ?? "0"
+        timeSeconds = (try? c.decode(String.self, forKey: .timeSeconds)) ?? "0"
+        timeStr    = (try? c.decode(String.self, forKey: .timeStr))    ?? ""
+        isArrival  = (try? c.decode(String.self, forKey: .isArrival))  ?? "0"
+        platform   = (try? c.decode(String.self, forKey: .platform))   ?? ""
+        date       = (try? c.decode(String.self, forKey: .date))       ?? ""
+    }
 }
 
 struct DepartureAPIEntry: Decodable {

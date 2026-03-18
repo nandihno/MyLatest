@@ -3,11 +3,13 @@
 //  myLatest
 //
 //  Fetches real-time Metro Trains Melbourne data:
-//    • website_data.json  — line status, alerts, planned works
-//    • departures.json    — real-time departure times per station
+//    • website_data.json              — line status, alerts, planned works, line IDs
+//    • departures.json                — real-time departure times per station
+//    • op_timetable_<line_id>.json    — full operational timetable for Plan Ahead
 //
-//  Both endpoints are fetched concurrently.  Results are mapped to the
-//  app-facing TrainInfo model defined in Models.swift.
+//  website_data.json and departures.json are fetched concurrently.
+//  The line ID extracted from website_data.json is then used to fetch the
+//  operational timetable for the Plan Ahead feature.
 //
 
 import Foundation
@@ -42,12 +44,15 @@ final class TrainService {
         let depsResp  = try decoder.decode(DeparturesAPIResponse.self, from: departuresData)
 
         // Find the matching line by name (case-insensitive exact match first,
-        // then partial match as fallback).
-        let lineData = allLines.values.first {
-            $0.lineName.lowercased() == lineName.lowercased()
-        } ?? allLines.values.first {
-            $0.lineName.lowercased().contains(lineName.lowercased())
-        }
+        // then partial match as fallback).  Also capture the numeric line ID.
+        let matchedLine: (lineId: String, data: TrainLineAPIData)? =
+            allLines.lines.first {
+                $0.data.lineName.lowercased() == lineName.lowercased()
+            } ?? allLines.lines.first {
+                $0.data.lineName.lowercased().contains(lineName.lowercased())
+            }
+        let lineData = matchedLine?.data
+        let lineId   = matchedLine?.lineId
 
         // Current Melbourne time in seconds since midnight — used to filter
         // out trains that have already departed.
@@ -59,24 +64,31 @@ final class TrainService {
                                               station: homeStation,
                                               currentSeconds: nowSeconds,
                                               toCityOnly: nil)
-        // Home station: ALL departures for the day (no time filter, unlimited)
-        // Used by the "Plan Ahead" feature so the user can browse a future time window.
-        let homeAllDeps = filterAndMapDepartures(depsResp.entries,
-                                                  station: homeStation,
-                                                  currentSeconds: 0,
-                                                  toCityOnly: nil,
-                                                  limit: nil)
-        // City station: outbound only (to_city=0 — heading away from the city)
-        let cityDeps = filterAndMapDepartures(depsResp.entries,
-                                              station: cityStation,
-                                              currentSeconds: nowSeconds,
-                                              toCityOnly: false)
-        // City station: ALL outbound departures for the day (no time filter, unlimited)
-        let cityAllDeps = filterAndMapDepartures(depsResp.entries,
-                                                  station: cityStation,
-                                                  currentSeconds: 0,
-                                                  toCityOnly: false,
-                                                  limit: nil)
+        // ── Plan Ahead: full timetable from op_timetable endpoint ─────
+        // Fetch the full operational timetable for the line so Plan Ahead
+        // can show departures at any future time, not just near-current ones.
+        var homeAllDeps: [TrainDeparture] = []
+        var cityAllDeps: [TrainDeparture] = []
+        if let lineId {
+            let timetableEntries = try await fetchTimetable(lineId: lineId)
+            homeAllDeps = filterAndMapTimetable(timetableEntries,
+                                                station: homeStation,
+                                                toCityOnly: nil)
+            cityAllDeps = filterAndMapTimetable(timetableEntries,
+                                                station: cityStation,
+                                                toCityOnly: false)
+        }
+
+        // City station: outbound departures from the timetable endpoint,
+        // filtered to now → now + 30 minutes.
+        let cityDeps: [TrainDeparture] = {
+            guard !cityAllDeps.isEmpty else { return [] }
+            let maxSeconds = nowSeconds + 1800  // +30 minutes
+            return cityAllDeps.filter {
+                $0.estimatedDepartureSeconds >= nowSeconds &&
+                $0.estimatedDepartureSeconds <= maxSeconds
+            }
+        }()
 
         guard let lineData else {
             // Line name not matched — return a minimal result with departures only.
@@ -149,6 +161,49 @@ final class TrainService {
             cityStationAllDepartures: cityAllDeps,
             melbourneTimeAtFetch: melbourneTime
         )
+    }
+
+    // MARK: - Timetable (Plan Ahead)
+
+    /// Fetch the full operational timetable for a line from the static S3 endpoint.
+    private func fetchTimetable(lineId: String) async throws -> [TimetableAPIEntry] {
+        let url = URL(string: "https://747813379903-static-assets-production.s3-ap-southeast-2.amazonaws.com/op_timetable_\(lineId).json")!
+        let (data, _) = try await URLSession.shared.data(from: url)
+        return try JSONDecoder().decode([TimetableAPIEntry].self, from: data)
+    }
+
+    /// Filter timetable entries by station name and direction, returning TrainDeparture models.
+    /// No time filtering is applied — the Plan Ahead UI handles the window.
+    private func filterAndMapTimetable(_ entries: [TimetableAPIEntry],
+                                       station: String,
+                                       toCityOnly: Bool?) -> [TrainDeparture] {
+        guard !station.isEmpty else { return [] }
+        let query = station.lowercased()
+
+        return entries
+            .filter { entry in
+                let name = entry.station.lowercased()
+                guard name.contains(query) || query.contains(name) else { return false }
+                guard entry.isArrival == "0" else { return false }
+                if let toCityOnly {
+                    guard (entry.toCity == "1") == toCityOnly else { return false }
+                }
+                return true
+            }
+            .sorted { (Int($0.timeSeconds) ?? 0) < (Int($1.timeSeconds) ?? 0) }
+            .map { entry in
+                let secs = Int(entry.timeSeconds) ?? 0
+                return TrainDeparture(
+                    station:                   entry.station,
+                    isToCity:                  entry.toCity == "1",
+                    scheduledTimeStr:          entry.timeStr,
+                    estimatedArrivalStr:       entry.timeStr,   // timetable has no estimates
+                    estimatedDepartureStr:     entry.timeStr,
+                    estimatedDepartureSeconds: secs,
+                    platform:                  entry.platform,
+                    estimatedPlatform:         entry.platform
+                )
+            }
     }
 
     // MARK: - Private helpers
