@@ -2308,6 +2308,10 @@ struct SettingsView: View {
     @AppStorage("drivingProvider") private var drivingProviderRaw: String = DrivingProvider.apple.rawValue
     @AppStorage("aiProvider") private var aiProviderRaw: String = AIProvider.appleIntelligence.rawValue
     @AppStorage("userAge")      private var userAge:      String = ""
+    @State private var showDeleteGTFSConfirmation = false
+    @State private var gtfsRedownloadStatus = ""
+    @State private var gtfsDataReady = false
+    @State private var gtfsDownloadInProgress = false
 
     private var useGoogleMaps: Binding<Bool> {
         Binding(
@@ -2394,23 +2398,98 @@ struct SettingsView: View {
                 // ── Queensland Bus Info ────────────────────────────────
                 if transportModeRaw == TransportMode.queensland.rawValue {
                     Section {
-                        NavigationLink {
-                            FavouriteBusStopsView()
-                        } label: {
-                            HStack {
-                                Text("Favourite Stops")
-                                Spacer()
-                                Text("\(FavouriteBusStopStore.shared.all.count)")
-                                    .foregroundStyle(.secondary)
+                        if gtfsDataReady {
+                            NavigationLink {
+                                FavouriteBusStopsView()
+                            } label: {
+                                HStack {
+                                    Text("Favourite Stops")
+                                    Spacer()
+                                    Text("\(FavouriteBusStopStore.shared.all.count)")
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            Label("Nearby stops within 300m are also shown automatically.", systemImage: "location.fill")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        } else if gtfsDownloadInProgress {
+                            HStack(spacing: 12) {
+                                ProgressView()
+                                VStack(alignment: .leading) {
+                                    Text(GTFSDownloadProgress.shared.stage.isEmpty ? "Downloading bus data…" : GTFSDownloadProgress.shared.stage)
+                                        .font(.subheadline)
+                                    if !GTFSDownloadProgress.shared.detail.isEmpty {
+                                        Text(GTFSDownloadProgress.shared.detail)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                        } else {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Label("Bus schedule data needs to be downloaded before you can search and add favourite stops.", systemImage: "exclamationmark.triangle.fill")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.orange)
+
+                                Button {
+                                    gtfsDownloadInProgress = true
+                                    Task {
+                                        do {
+                                            try await GTFSDatabase.shared.ensureReady()
+                                            gtfsDataReady = true
+                                        } catch {
+                                            gtfsRedownloadStatus = "Download failed: \(error.localizedDescription)"
+                                        }
+                                        gtfsDownloadInProgress = false
+                                    }
+                                } label: {
+                                    Label("Download Bus Data (~26 MB)", systemImage: "arrow.down.circle.fill")
+                                        .frame(maxWidth: .infinity)
+                                }
+                                .buttonStyle(.borderedProminent)
                             }
                         }
-                        Label("Nearby stops within 300m are also shown automatically.", systemImage: "location.fill")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
                     } header: {
                         Text("SEQ Bus")
                     } footer: {
                         Text("Data provided by TransLink. Schedule and real-time data is downloaded on first use (~26 MB). Times are displayed in Queensland time (AEST, UTC+10).")
+                    }
+
+                    if gtfsDataReady {
+                        Section {
+                            Button(role: .destructive) {
+                                showDeleteGTFSConfirmation = true
+                            } label: {
+                                Label("Delete & Re-download Bus Data", systemImage: "arrow.triangle.2.circlepath")
+                            }
+                            .confirmationDialog(
+                                "Delete Bus Data?",
+                                isPresented: $showDeleteGTFSConfirmation,
+                                titleVisibility: .visible
+                            ) {
+                                Button("Delete & Re-download", role: .destructive) {
+                                    Task {
+                                        do {
+                                            try await GTFSDatabase.shared.resetDatabase()
+                                            gtfsDataReady = false
+                                            gtfsRedownloadStatus = ""
+                                        } catch {
+                                            gtfsRedownloadStatus = "Error: \(error.localizedDescription)"
+                                        }
+                                    }
+                                }
+                            } message: {
+                                Text("This will delete the cached bus schedule data (~26 MB). You will need to re-download it to use favourite stops and bus departures.")
+                            }
+
+                            if !gtfsRedownloadStatus.isEmpty {
+                                Text(gtfsRedownloadStatus)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } header: {
+                            Text("Bus Data Management")
+                        }
                     }
                 }
 
@@ -2512,6 +2591,9 @@ struct SettingsView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
                 }
+            }
+            .task {
+                gtfsDataReady = await GTFSDatabase.shared.isDatabaseReady()
             }
         }
     }

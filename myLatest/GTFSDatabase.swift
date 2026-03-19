@@ -113,6 +113,22 @@ actor GTFSDatabase {
 
     // MARK: - Public API
 
+    /// Returns true if the database file exists and has data, without triggering a download.
+    func isDatabaseReady() -> Bool {
+        if isImported && db != nil { return true }
+        guard FileManager.default.fileExists(atPath: dbPath) else { return false }
+        // Try opening and checking
+        do {
+            try openDB()
+            let count = queryCount("SELECT COUNT(*) FROM stops")
+            if count > 0 {
+                isImported = true
+                return true
+            }
+        } catch {}
+        return false
+    }
+
     /// Ensures the database is ready. Downloads GTFS ZIP if needed, imports into SQLite.
     func ensureReady() async throws {
         if isImported && db != nil { return }
@@ -129,6 +145,26 @@ actor GTFSDatabase {
 
         // Need to download and import
         try await downloadAndImport()
+    }
+
+    /// Deletes the database and resets state so the next `ensureReady()` re-downloads everything.
+    func resetDatabase() throws {
+        // Close existing connection
+        if let db {
+            sqlite3_close(db)
+        }
+        db = nil
+        isImported = false
+
+        let fm = FileManager.default
+        // Remove SQLite file
+        if fm.fileExists(atPath: dbPath) {
+            try fm.removeItem(atPath: dbPath)
+        }
+        // Remove extracted CSV directory
+        if fm.fileExists(atPath: extractDir.path) {
+            try fm.removeItem(at: extractDir)
+        }
     }
 
     /// Search bus stops by name (case-insensitive LIKE query).
@@ -180,6 +216,47 @@ actor GTFSDatabase {
         guard let attrs = try? FileManager.default.attributesOfItem(atPath: dbPath),
               let modified = attrs[.modificationDate] as? Date else { return true }
         return abs(modified.timeIntervalSinceNow) > 7 * 24 * 3600
+    }
+
+    /// Find bus stops within a bounding box (for map view). Returns up to `limit` stops.
+    func stopsInRegion(minLat: Double, maxLat: Double, minLon: Double, maxLon: Double, limit: Int = 100) throws -> [GTFSStop] {
+        guard let db else { throw GTFSDBError.notReady }
+
+        let sql = """
+            SELECT stop_id, stop_name, stop_code, stop_lat, stop_lon, location_type, parent_station
+            FROM stops
+            WHERE route_type = 3
+              AND location_type = 0
+              AND stop_lat BETWEEN ? AND ?
+              AND stop_lon BETWEEN ? AND ?
+            LIMIT ?
+        """
+
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else {
+            throw GTFSDBError.queryFailed(String(cString: sqlite3_errmsg(db)))
+        }
+        defer { sqlite3_finalize(stmt) }
+
+        sqlite3_bind_double(stmt, 1, minLat)
+        sqlite3_bind_double(stmt, 2, maxLat)
+        sqlite3_bind_double(stmt, 3, minLon)
+        sqlite3_bind_double(stmt, 4, maxLon)
+        sqlite3_bind_int(stmt, 5, Int32(limit))
+
+        var results: [GTFSStop] = []
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            results.append(GTFSStop(
+                stopId: String(cString: sqlite3_column_text(stmt, 0)),
+                stopName: String(cString: sqlite3_column_text(stmt, 1)),
+                stopCode: sqlite3_column_text(stmt, 2).map { String(cString: $0) },
+                stopLat: sqlite3_column_double(stmt, 3),
+                stopLon: sqlite3_column_double(stmt, 4),
+                locationType: Int(sqlite3_column_int(stmt, 5)),
+                parentStation: sqlite3_column_text(stmt, 6).map { String(cString: $0) }
+            ))
+        }
+        return results
     }
 
     /// Find bus stops within `radiusMeters` of the given coordinate.
