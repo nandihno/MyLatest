@@ -75,6 +75,7 @@ struct HealthView: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                DailyBriefCard(brief: healthData!.dailyBrief, userAge: Int(userAge) ?? 0)
                 WorkoutDistanceCard(data: healthData!.workoutData.weeklyDistance)
                 ActivitySummaryCard(activities:    healthData!.workoutData.activities,
                                     weekStartDate: healthData!.workoutData.weeklyDistance.weekStartDate)
@@ -278,6 +279,442 @@ struct HealthView: View {
             }
             isAnalysing = false
         }
+    }
+}
+
+// MARK: - Daily Brief card
+
+private struct DailyBriefCard: View {
+    let brief: DailyBrief
+    let userAge: Int
+
+    // MARK: - VO2 Max age-based reference ranges
+
+    private var vo2Zones: (excellent: Double, average: Double) {
+        switch userAge {
+        case ..<30:  return (49, 39)
+        case 30..<40: return (48, 35)
+        case 40..<50: return (45, 31)
+        case 50..<60: return (42, 27)
+        default:      return (39, 23)
+        }
+    }
+
+    // MARK: - Resting HR assessment
+
+    private var restingHRAssessment: (label: String, color: Color) {
+        guard let hr = brief.restingHeartRate else { return ("—", .secondary) }
+        switch hr {
+        case ..<50:  return ("Athlete",   .blue)
+        case ..<60:  return ("Excellent", .green)
+        case ..<70:  return ("Good",      .teal)
+        case ..<80:  return ("Average",   .orange)
+        default:     return ("Elevated",  .red)
+        }
+    }
+
+    // MARK: - VO2 Max assessment
+
+    private var vo2Assessment: (label: String, color: Color) {
+        guard let v = brief.vo2MaxLatest else { return ("—", .secondary) }
+        let zones = vo2Zones
+        if v >= zones.excellent { return ("Excellent", .green) }
+        if v >= zones.average   { return ("Above avg", .teal) }
+        return ("Below avg", .orange)
+    }
+
+    // MARK: - Active energy assessment
+
+    private let moveGoal = 600 // default kcal goal
+
+    private var moveAssessment: (label: String, color: Color) {
+        let pct = moveGoal > 0 ? (brief.activeEnergyBurnedCal * 100) / moveGoal : 0
+        switch pct {
+        case 100...: return ("Goal hit!",         .green)
+        case 75...:  return ("\(pct)% of goal",   .teal)
+        case 50...:  return ("\(pct)% of goal",   .orange)
+        default:     return ("\(pct)% of goal",   .secondary)
+        }
+    }
+
+    // MARK: - Insight text
+
+    private var insightText: String? {
+        var parts: [String] = []
+
+        if let hr = brief.restingHeartRate {
+            if hr < 50 {
+                parts.append("Resting HR of \(hr) BPM is athlete-level.")
+            } else if hr < 60 {
+                parts.append("Resting HR of \(hr) BPM is excellent.")
+            } else if hr >= 80 {
+                parts.append("Resting HR of \(hr) BPM is elevated — consider rest and hydration.")
+            }
+        }
+
+        if brief.vo2MaxSamples.count >= 2,
+           let first = brief.vo2MaxSamples.first,
+           let last = brief.vo2MaxSamples.last {
+            let diff = last.value - first.value
+            if diff < -1.0 {
+                parts.append("Your VO2 Max is slightly down this month — normal variation for your age group.")
+            } else if diff > 1.0 {
+                parts.append("Your VO2 Max is trending up — your cardio fitness is improving.")
+            } else {
+                parts.append("Your VO2 Max is stable — maintaining your current fitness level.")
+            }
+        }
+
+        return parts.isEmpty ? nil : parts.joined(separator: " ")
+    }
+
+    // MARK: - VO2 trend status badge
+
+    private var vo2TrendStatus: (label: String, color: Color) {
+        guard brief.vo2MaxSamples.count >= 2,
+              let first = brief.vo2MaxSamples.first,
+              let last = brief.vo2MaxSamples.last else {
+            return ("No data", .secondary)
+        }
+        let diff = last.value - first.value
+        if diff > 1.0       { return ("Improving",                  .green) }
+        if diff < -1.0      { return ("Declining — monitor trend",  .orange) }
+
+        let zones = vo2Zones
+        if let v = brief.vo2MaxLatest {
+            if v >= zones.excellent { return ("Stable — excellent range",       .green) }
+            if v >= zones.average   { return ("Stable — within normal range",   .teal) }
+            return                           ("Stable — below average",         .orange)
+        }
+        return ("Stable", .secondary)
+    }
+
+    // MARK: - Body
+
+    var body: some View {
+        CardContainer {
+            VStack(alignment: .leading, spacing: 14) {
+
+                // ── Header ─────────────────────────────────────────────
+                HStack(alignment: .firstTextBaseline) {
+                    Label("Daily Brief", systemImage: "sun.horizon.fill")
+                        .font(.headline)
+                        .foregroundStyle(.orange)
+                    Spacer()
+                    Text("Morning snapshot")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                // ── Top metrics row ────────────────────────────────────
+                HStack(spacing: 8) {
+                    briefMetric(
+                        icon:   "flame.fill",
+                        color:  .red,
+                        value:  "\(brief.activeEnergyBurnedCal)",
+                        unit:   "kcal",
+                        label:  "Move",
+                        badge:  moveAssessment
+                    )
+                    briefMetric(
+                        icon:   "heart.fill",
+                        color:  .pink,
+                        value:  brief.restingHeartRate.map { "\($0)" } ?? "—",
+                        unit:   "BPM",
+                        label:  "Resting HR",
+                        badge:  restingHRAssessment
+                    )
+                    briefMetric(
+                        icon:   "lungs.fill",
+                        color:  .blue,
+                        value:  brief.vo2MaxLatest.map { String(format: "%.1f", $0) } ?? "—",
+                        unit:   "mL/kg",
+                        label:  "VO2 Max",
+                        badge:  vo2Assessment
+                    )
+                }
+
+                // ── Insight explainer ──────────────────────────────────
+                if let insight = insightText {
+                    HStack(alignment: .top, spacing: 8) {
+                        Circle()
+                            .fill(.blue)
+                            .frame(width: 7, height: 7)
+                            .padding(.top, 5)
+                        Text(insight)
+                            .font(.subheadline)
+                            .foregroundStyle(.primary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(12)
+                    .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12))
+                }
+
+                // ── VO2 Max trend ──────────────────────────────────────
+                if brief.vo2MaxSamples.count >= 2 {
+                    vo2TrendSection
+                }
+
+                // ── Today's workouts ───────────────────────────────────
+                todayWorkoutsSection
+            }
+        }
+    }
+
+    // MARK: - Metric pill with badge
+
+    @ViewBuilder
+    private func briefMetric(icon: String, color: Color, value: String,
+                              unit: String, label: String,
+                              badge: (label: String, color: Color)) -> some View {
+        VStack(spacing: 5) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(color)
+            HStack(alignment: .lastTextBaseline, spacing: 2) {
+                Text(value)
+                    .font(.system(.title3, design: .rounded).weight(.bold))
+                if !unit.isEmpty {
+                    Text(unit)
+                        .font(.system(size: 9))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+            // Quality badge
+            Text(badge.label)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(badge.color)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(badge.color.opacity(0.12), in: Capsule())
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .background(color.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - VO2 Max trend with reference zones
+
+    private var vo2TrendSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .center) {
+                Text("VO2 Max trend")
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                Text(vo2TrendStatus.label)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(vo2TrendStatus.color)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(vo2TrendStatus.color.opacity(0.12), in: Capsule())
+            }
+
+            let zones = vo2Zones
+            let dataMin = brief.vo2MaxSamples.map(\.value).min() ?? zones.average
+            let chartLo = min(dataMin, zones.average) - 3
+            let chartHi = max((brief.vo2MaxSamples.map(\.value).max() ?? zones.excellent), zones.excellent) + 3
+
+            ZStack(alignment: .trailing) {
+                Chart {
+                    // Excellent zone (shaded green)
+                    RectangleMark(
+                        yStart: .value("ExcStart", zones.excellent),
+                        yEnd:   .value("ExcEnd",   chartHi)
+                    )
+                    .foregroundStyle(.green.opacity(0.08))
+
+                    // Average zone (shaded blue)
+                    RectangleMark(
+                        yStart: .value("AvgStart", zones.average),
+                        yEnd:   .value("AvgEnd",   zones.excellent)
+                    )
+                    .foregroundStyle(.blue.opacity(0.05))
+
+                    // Excellent threshold line
+                    RuleMark(y: .value("Excellent", zones.excellent))
+                        .lineStyle(StrokeStyle(lineWidth: 0.5, dash: [4, 3]))
+                        .foregroundStyle(.green.opacity(0.5))
+
+                    // Average threshold line
+                    RuleMark(y: .value("Average", zones.average))
+                        .lineStyle(StrokeStyle(lineWidth: 0.5, dash: [4, 3]))
+                        .foregroundStyle(.blue.opacity(0.4))
+
+                    // Data line
+                    ForEach(brief.vo2MaxSamples) { sample in
+                        LineMark(
+                            x: .value("Date",  sample.date),
+                            y: .value("VO2",   sample.value)
+                        )
+                        .foregroundStyle(.blue)
+                        .interpolationMethod(.catmullRom)
+                        .lineStyle(StrokeStyle(lineWidth: 2.5))
+
+                        PointMark(
+                            x: .value("Date",  sample.date),
+                            y: .value("VO2",   sample.value)
+                        )
+                        .foregroundStyle(.blue)
+                        .symbolSize(sample.id == brief.vo2MaxSamples.last?.id ? 40 : 20)
+                    }
+                }
+                .chartYScale(domain: chartLo...chartHi)
+                .chartXAxis {
+                    AxisMarks(values: .stride(by: .weekOfYear, count: 1)) { _ in
+                        AxisGridLine()
+                        AxisValueLabel(format: .dateTime.day().month(.abbreviated))
+                    }
+                }
+                .chartYAxis {
+                    AxisMarks(values: .automatic(desiredCount: 3)) { val in
+                        AxisGridLine()
+                        AxisValueLabel {
+                            if let v = val.as(Double.self) {
+                                Text(String(format: "%.0f", v))
+                                    .font(.caption2)
+                            }
+                        }
+                    }
+                }
+                .frame(height: 120)
+
+                // Zone labels on the right edge
+                VStack(spacing: 0) {
+                    Text("Excellent")
+                        .font(.system(size: 8, weight: .medium))
+                        .foregroundStyle(.green)
+                    Spacer()
+                    Text("Average")
+                        .font(.system(size: 8, weight: .medium))
+                        .foregroundStyle(.blue)
+                }
+                .frame(height: 120)
+                .padding(.trailing, 2)
+            }
+
+            // Footer explainer
+            if userAge > 0 {
+                Text("Shaded zone = excellent range for your age group (\(userAge)). Based on standard VO2 Max reference tables.")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .padding(12)
+        .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - Today's workouts with comparison
+
+    private var todayWorkoutsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Today's workouts")
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                if brief.workoutComparisons.isEmpty {
+                    Text("Rest day")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("In progress")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if brief.workoutComparisons.isEmpty {
+                HStack(spacing: 8) {
+                    Image(systemName: "figure.stand")
+                        .foregroundStyle(.secondary)
+                    Text("No workouts logged yet today")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 4)
+            } else {
+                ForEach(Array(brief.workoutComparisons.enumerated()), id: \.element.id) { idx, comp in
+                    if idx > 0 { Divider() }
+                    workoutComparisonRow(comp)
+                }
+            }
+
+            Divider()
+
+            // Footer explainer
+            Text("Week-on-week comparison shown at end of day.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(12)
+        .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    @ViewBuilder
+    private func workoutComparisonRow(_ comp: WorkoutComparison) -> some View {
+        HStack(spacing: 12) {
+            // Icon in colored circle
+            ZStack {
+                Circle()
+                    .fill(.orange.opacity(0.12))
+                    .frame(width: 38, height: 38)
+                Image(systemName: workoutIcon(comp.name))
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(.orange)
+            }
+
+            // Name + duration
+            VStack(alignment: .leading, spacing: 2) {
+                Text(comp.name)
+                    .font(.subheadline.weight(.medium))
+                Text("\(comp.todayDurationLabel)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            // Calories + last week comparison
+            VStack(alignment: .trailing, spacing: 2) {
+                HStack(spacing: 4) {
+                    Text("\(comp.todayCalories) kcal")
+                        .font(.subheadline.weight(.semibold))
+                    if let pct = comp.changePercent {
+                        let color: Color = pct > 0 ? .green : pct < 0 ? .orange : .secondary
+                        Text(pct == 0 ? "≈" : "\(pct > 0 ? "↑" : "↓")\(abs(pct))%")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(color)
+                    }
+                }
+                Text("Last week: \(comp.lastWeekDurationLabel)")
+                    .font(.caption2)
+                    .foregroundStyle(comp.lastWeekMinutes == nil ? .tertiary : .secondary)
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func workoutIcon(_ name: String) -> String {
+        let lower = name.lowercased()
+        if lower.contains("walk")     { return "figure.walk" }
+        if lower.contains("run")      { return "figure.run" }
+        if lower.contains("hik")      { return "figure.hiking" }
+        if lower.contains("cycl")     { return "figure.outdoor.cycle" }
+        if lower.contains("yoga")     { return "figure.yoga" }
+        if lower.contains("pilates")  { return "figure.pilates" }
+        if lower.contains("core")     { return "figure.core.training" }
+        if lower.contains("strength") || lower.contains("functional") { return "dumbbell" }
+        if lower.contains("hiit")     { return "figure.highintensity.intervaltraining" }
+        if lower.contains("swim")     { return "figure.pool.swim" }
+        if lower.contains("dance")    { return "figure.dance" }
+        if lower.contains("ellip")    { return "figure.elliptical" }
+        if lower.contains("stair")    { return "figure.stair.stepper" }
+        if lower.contains("row")      { return "figure.rowing" }
+        return "figure.mixed.cardio"
     }
 }
 
@@ -811,9 +1248,13 @@ private struct HealthAnalysisSectionCard: View {
         if t.contains("heart") || t.contains("cardio")           { return ("heart.fill",           .red)    }
         if t.contains("activity") || t.contains("exercise")      { return ("figure.run",           .orange) }
         if t.contains("distance") || t.contains("walk")          { return ("figure.walk",          .teal)   }
+        if t.contains("energy") || t.contains("move")
+            || t.contains("calorie")                              { return ("flame.fill",           .red)    }
+        if t.contains("vo2") || t.contains("fitness")            { return ("lungs.fill",           .blue)   }
         if t.contains("recovery") || t.contains("rest")          { return ("bed.double.fill",      .blue)   }
         if t.contains("tip") || t.contains("recommend")          { return ("lightbulb.fill",       .yellow) }
-        if t.contains("summary") || t.contains("overview")       { return ("chart.bar.fill",       .green)  }
+        if t.contains("summary") || t.contains("overview")
+            || t.contains("brief")                                { return ("chart.bar.fill",       .green)  }
         if t.contains("warning") || t.contains("concern")        { return ("exclamationmark.triangle.fill", .orange) }
         return                                                             ("sparkles",             .purple)
     }

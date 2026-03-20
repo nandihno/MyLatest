@@ -24,6 +24,12 @@ final class DrivingDestinationStore {
         persist()
     }
 
+    func update(_ destination: DrivingDestination) {
+        guard let index = custom.firstIndex(where: { $0.id == destination.id }) else { return }
+        custom[index] = destination
+        persist()
+    }
+
     func delete(offsets: IndexSet) {
         for index in offsets.sorted(by: >) {
             custom.remove(at: index)

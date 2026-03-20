@@ -122,10 +122,66 @@ struct WorkoutData {
     let activities     : [ActivityWeekSummary]
 }
 
+// MARK: - Daily Brief
+
+/// A workout comparison: today's total for a workout type vs the same day last week.
+struct WorkoutComparison: Identifiable {
+    let id              = UUID()
+    let name            : String   // e.g. "Walking", "HIIT", "Strength Training"
+    let todayMinutes    : Int
+    let todayCalories   : Int
+    let lastWeekMinutes : Int?     // nil = didn't do this workout last week
+
+    var todayDurationLabel: String { Self.formatDuration(todayMinutes) }
+    var lastWeekDurationLabel: String {
+        guard let m = lastWeekMinutes else { return "N/A" }
+        return Self.formatDuration(m)
+    }
+
+    /// Percentage change vs last week. nil when last week is N/A or both zero.
+    var changePercent: Int? {
+        guard let lw = lastWeekMinutes, lw > 0 else { return nil }
+        guard todayMinutes != lw else { return 0 }
+        return Int((Double(todayMinutes - lw) / Double(lw)) * 100)
+    }
+
+    static func formatDuration(_ minutes: Int) -> String {
+        guard minutes > 0 else { return "—" }
+        let h = minutes / 60, m = minutes % 60
+        if h > 0 && m > 0 { return "\(h)h \(m)m" }
+        return h > 0 ? "\(h)h" : "\(m)m"
+    }
+}
+
+/// A single VO2 Max reading over time.
+struct VO2MaxSample: Identifiable {
+    let id        = UUID()
+    let date      : Date
+    let value     : Double   // mL/kg/min
+}
+
+/// Daily Brief metrics — a quick morning health snapshot.
+struct DailyBrief {
+    let workoutComparisons    : [WorkoutComparison]  // today vs same day last week
+    let activeEnergyBurnedCal : Int       // yesterday's total active energy (kcal)
+    let restingHeartRate      : Int?      // most recent resting HR (BPM)
+    let vo2MaxSamples         : [VO2MaxSample]  // last 4 weeks for trend
+
+    var vo2MaxLatest: Double? { vo2MaxSamples.last?.value }
+
+    var todayTotalMinutes: Int { workoutComparisons.reduce(0) { $0 + $1.todayMinutes } }
+    var todayTotalCalories: Int { workoutComparisons.reduce(0) { $0 + $1.todayCalories } }
+
+    var todayDurationLabel: String {
+        WorkoutComparison.formatDuration(todayTotalMinutes)
+    }
+}
+
 // MARK: - Top-level container
 
 struct HealthData {
     let sleepRecords   : [SleepRecord]
     let heartRateStats : HeartRateStats
     let workoutData    : WorkoutData
+    let dailyBrief     : DailyBrief
 }

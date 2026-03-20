@@ -267,11 +267,13 @@
 				CODE_SIGN_ENTITLEMENTS = myLatest/myLatest.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 8;
 				DEVELOPMENT_TEAM = D58U53H2X6;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = MyLatest;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "myLatest reads your upcoming events to show them on the dashboard.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "myLatest reads your sleep and heart rate data to show your health summary.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "myLatest uses Health data to update your activity and wellness information in your daily summary.\nmyLatest uses Health data to update your activity and wellness information in your daily summary.";
@@ -286,7 +288,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.5;
+				MARKETING_VERSION = 1.61;
 				PRODUCT_BUNDLE_IDENTIFIER = org.nando.myLatest;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -308,11 +310,13 @@
 				CODE_SIGN_ENTITLEMENTS = myLatest/myLatest.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 8;
 				DEVELOPMENT_TEAM = D58U53H2X6;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = MyLatest;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "myLatest reads your upcoming events to show them on the dashboard.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "myLatest reads your sleep and heart rate data to show your health summary.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "myLatest uses Health data to update your activity and wellness information in your daily summary.\nmyLatest uses Health data to update your activity and wellness information in your daily summary.";
@@ -327,7 +331,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.5;
+				MARKETING_VERSION = 1.61;
 				PRODUCT_BUNDLE_IDENTIFIER = org.nando.myLatest;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";

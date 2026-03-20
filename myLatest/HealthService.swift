@@ -28,6 +28,15 @@ final class HealthService {
     private var workoutType: HKWorkoutType {
         HKObjectType.workoutType()
     }
+    private var activeEnergyType: HKQuantityType {
+        HKQuantityType(.activeEnergyBurned)
+    }
+    private var restingHeartRateType: HKQuantityType {
+        HKQuantityType(.restingHeartRate)
+    }
+    private var vo2MaxType: HKQuantityType {
+        HKQuantityType(.vo2Max)
+    }
 
     // MARK: - Public API
 
@@ -42,7 +51,8 @@ final class HealthService {
         do {
             try await store.requestAuthorization(
                 toShare: [],
-                read:    [sleepType, heartRateType, distanceType, workoutType]
+                read:    [sleepType, heartRateType, distanceType, workoutType,
+                         activeEnergyType, restingHeartRateType, vo2MaxType]
             )
         } catch {
             print("⚕️ HealthKit auth error: \(error) — using mock data")
@@ -51,11 +61,12 @@ final class HealthService {
             return mock
         }
 
-        // Fetch all three datasets concurrently.
+        // Fetch all datasets concurrently.
         async let sleepTask    = fetchSleepRecords()
         async let hrTask       = fetchHeartRateSamples()
         async let workoutTask  = fetchWorkoutData()
-        let (sleepRecs, hrSamples, workouts) = await (sleepTask, hrTask, workoutTask)
+        async let briefTask    = fetchDailyBrief()
+        let (sleepRecs, hrSamples, workouts, brief) = await (sleepTask, hrTask, workoutTask, briefTask)
 
         // Fall back to mock for sleep/HR if empty (permission may be denied for just one).
         // Workout data is always used as-is — zero sessions is valid (user just hasn't logged any).
@@ -65,7 +76,8 @@ final class HealthService {
         let result = HealthData(
             sleepRecords:   finalSleep,
             heartRateStats: HeartRateStats(samples: finalHR),
-            workoutData:    workouts
+            workoutData:    workouts,
+            dailyBrief:     brief
         )
         print(debugSummary(result, source: "LIVE"))
         return result
@@ -244,12 +256,179 @@ final class HealthService {
         }
     }
 
+    // MARK: - Daily Brief
+
+    private func fetchDailyBrief() async -> DailyBrief {
+        var melbCal = Calendar.current
+        melbCal.timeZone = TimeZone(identifier: "Australia/Melbourne")!
+        let now           = Date()
+        let startOfToday  = melbCal.startOfDay(for: now)
+        let startOfYday   = melbCal.date(byAdding: .day, value: -1, to: startOfToday)!
+
+        // Same day last week
+        let lastWeekToday     = melbCal.date(byAdding: .day, value: -7, to: startOfToday)!
+        let lastWeekTomorrow  = melbCal.date(byAdding: .day, value: -6, to: startOfToday)!
+
+        async let todayWorkoutsTask    = fetchWorkouts(from: startOfToday, to: now)
+        async let lastWeekWorkoutsTask = fetchWorkouts(from: lastWeekToday, to: lastWeekTomorrow)
+        async let energyTask           = fetchActiveEnergy(from: startOfYday, to: startOfToday)
+        async let restHRTask           = fetchRestingHeartRate()
+        async let vo2Task              = fetchVO2MaxSamples()
+        let (todayWorkouts, lastWeekWorkouts, energy, restHR, vo2) =
+            await (todayWorkoutsTask, lastWeekWorkoutsTask, energyTask, restHRTask, vo2Task)
+
+        let comparisons = buildWorkoutComparisons(today: todayWorkouts, lastWeek: lastWeekWorkouts)
+
+        return DailyBrief(
+            workoutComparisons:    comparisons,
+            activeEnergyBurnedCal: energy,
+            restingHeartRate:      restHR,
+            vo2MaxSamples:         vo2
+        )
+    }
+
+    /// Builds per-workout-type comparisons between today and the same day last week.
+    private func buildWorkoutComparisons(today: [HKWorkout], lastWeek: [HKWorkout]) -> [WorkoutComparison] {
+        let energyUnit = HKUnit.kilocalorie()
+
+        // Aggregate by workout name
+        func aggregate(_ workouts: [HKWorkout]) -> [String: (minutes: Int, calories: Int)] {
+            var dict: [String: (minutes: Int, calories: Int)] = [:]
+            for w in workouts {
+                let name = workoutTypeName(w.workoutActivityType)
+                let mins = Int(w.duration / 60)
+                let cals = Int(w.totalEnergyBurned?.doubleValue(for: energyUnit) ?? 0)
+                let existing = dict[name] ?? (0, 0)
+                dict[name] = (existing.minutes + mins, existing.calories + cals)
+            }
+            return dict
+        }
+
+        let todayAgg    = aggregate(today)
+        let lastWeekAgg = aggregate(lastWeek)
+
+        // All workout types from both days, maintaining order (today first)
+        var seen = Set<String>()
+        var orderedNames: [String] = []
+        for name in today.map({ workoutTypeName($0.workoutActivityType) }) {
+            if seen.insert(name).inserted { orderedNames.append(name) }
+        }
+        for name in lastWeek.map({ workoutTypeName($0.workoutActivityType) }) {
+            if seen.insert(name).inserted { orderedNames.append(name) }
+        }
+
+        return orderedNames.map { name in
+            let t = todayAgg[name]
+            let l = lastWeekAgg[name]
+            return WorkoutComparison(
+                name:            name,
+                todayMinutes:    t?.minutes ?? 0,
+                todayCalories:   t?.calories ?? 0,
+                lastWeekMinutes: l?.minutes  // nil if not done last week
+            )
+        }
+    }
+
+    /// Maps HKWorkoutActivityType to a human-readable name.
+    private func workoutTypeName(_ type: HKWorkoutActivityType) -> String {
+        switch type {
+        case .walking:                       return "Walking"
+        case .running:                       return "Running"
+        case .hiking:                        return "Hiking"
+        case .cycling:                       return "Cycling"
+        case .yoga:                          return "Yoga"
+        case .pilates:                       return "Pilates"
+        case .coreTraining:                  return "Core Training"
+        case .traditionalStrengthTraining:   return "Strength Training"
+        case .functionalStrengthTraining:    return "Functional Strength"
+        case .highIntensityIntervalTraining: return "HIIT"
+        case .crossTraining:                 return "Cross Training"
+        case .mixedCardio:                   return "Mixed Cardio"
+        case .elliptical:                    return "Elliptical"
+        case .stairClimbing:                 return "Stair Climbing"
+        case .rowing:                        return "Rowing"
+        case .flexibility:                   return "Flexibility"
+        case .mindAndBody:                   return "Mind & Body"
+        case .swimming:                      return "Swimming"
+        case .dance:                         return "Dance"
+        default:                             return "Workout"
+        }
+    }
+
+    /// Fetches yesterday's total active energy burned (kcal).
+    private func fetchActiveEnergy(from start: Date, to end: Date) async -> Int {
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end,
+                                                     options: .strictStartDate)
+        return await withCheckedContinuation { cont in
+            let q = HKStatisticsQuery(quantityType: activeEnergyType,
+                                       quantitySamplePredicate: predicate,
+                                       options: .cumulativeSum) { _, stats, error in
+                if let error { print("⚕️ Active energy query error: \(error)") }
+                let kcal = stats?.sumQuantity()?.doubleValue(for: .kilocalorie()) ?? 0
+                cont.resume(returning: Int(kcal))
+            }
+            store.execute(q)
+        }
+    }
+
+    /// Fetches the most recent resting heart rate value.
+    private func fetchRestingHeartRate() async -> Int? {
+        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate,
+                                               ascending: false)
+        return await withCheckedContinuation { cont in
+            let q = HKSampleQuery(sampleType:     restingHeartRateType,
+                                  predicate:      nil,
+                                  limit:          1,
+                                  sortDescriptors: [sortDescriptor]) { _, results, error in
+                if let error { print("⚕️ Resting HR query error: \(error)") }
+                guard let sample = results?.first as? HKQuantitySample else {
+                    cont.resume(returning: nil)
+                    return
+                }
+                let bpm = Int(sample.quantity.doubleValue(for: HKUnit(from: "count/min")))
+                cont.resume(returning: bpm)
+            }
+            store.execute(q)
+        }
+    }
+
+    /// Fetches VO2 Max samples from the last 4 weeks for trend display.
+    private func fetchVO2MaxSamples() async -> [VO2MaxSample] {
+        var melbCal = Calendar.current
+        melbCal.timeZone = TimeZone(identifier: "Australia/Melbourne")!
+        let now   = Date()
+        let start = melbCal.date(byAdding: .weekOfYear, value: -4, to: now)!
+
+        let predicate      = HKQuery.predicateForSamples(withStart: start, end: now,
+                                                          options: .strictStartDate)
+        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate,
+                                               ascending: true)
+
+        return await withCheckedContinuation { cont in
+            let q = HKSampleQuery(sampleType:     vo2MaxType,
+                                  predicate:      predicate,
+                                  limit:          HKObjectQueryNoLimit,
+                                  sortDescriptors: [sortDescriptor]) { _, results, error in
+                if let error { print("⚕️ VO2 Max query error: \(error)") }
+                let samples = (results as? [HKQuantitySample])?.map { s in
+                    VO2MaxSample(
+                        date:  s.startDate,
+                        value: s.quantity.doubleValue(for: HKUnit(from: "ml/kg*min"))
+                    )
+                } ?? []
+                cont.resume(returning: samples)
+            }
+            store.execute(q)
+        }
+    }
+
     // MARK: - Mock fallback (used on simulator or when HealthKit is denied)
 
     private func makeMockData() -> HealthData {
         HealthData(sleepRecords:   makeSleepRecords(),
                    heartRateStats: HeartRateStats(samples: makeHeartRateSamples()),
-                   workoutData:    makeWorkoutData())
+                   workoutData:    makeWorkoutData(),
+                   dailyBrief:     makeDailyBrief())
     }
 
     private func makeSleepRecords() -> [SleepRecord] {
@@ -477,6 +656,30 @@ final class HealthService {
         return WorkoutData(weeklyDistance: distData, activities: activities)
     }
 
+    private func makeDailyBrief() -> DailyBrief {
+        var melbCal = Calendar.current
+        melbCal.timeZone = TimeZone(identifier: "Australia/Melbourne")!
+        let today = melbCal.startOfDay(for: Date())
+
+        let mockVO2: [VO2MaxSample] = (-3...0).map { weeksAgo in
+            VO2MaxSample(
+                date:  melbCal.date(byAdding: .weekOfYear, value: weeksAgo, to: today)!,
+                value: 38.2 + Double(weeksAgo + 3) * 0.5 + Double.random(in: -0.3...0.3)
+            )
+        }
+
+        return DailyBrief(
+            workoutComparisons: [
+                WorkoutComparison(name: "Walking",           todayMinutes: 42, todayCalories: 185, lastWeekMinutes: 35),
+                WorkoutComparison(name: "Strength Training", todayMinutes: 55, todayCalories: 310, lastWeekMinutes: 60),
+                WorkoutComparison(name: "HIIT",              todayMinutes: 30, todayCalories: 280, lastWeekMinutes: nil),
+            ],
+            activeEnergyBurnedCal: 520,
+            restingHeartRate:      58,
+            vo2MaxSamples:         mockVO2
+        )
+    }
+
     // MARK: - Debug summary
 
     /// Builds a human-readable console summary of all data currently shown in the Health tab.
@@ -550,6 +753,39 @@ final class HealthService {
         lines.append("║   Latest: \(hr.latest.map { "\($0) BPM" } ?? "n/a")")
         lines.append("║   Min: \(hr.min) BPM   Avg: \(hr.average) BPM   Max: \(hr.max) BPM")
         lines.append("║   Samples: \(hr.samples.count)")
+
+        // ── Daily Brief ────────────────────────────────────────────────
+        let db = data.dailyBrief
+        lines.append("║")
+        lines.append("║  📋 DAILY BRIEF")
+        lines.append("║  ─────────────────────────────────────")
+        lines.append("║   Active Energy (yesterday): \(db.activeEnergyBurnedCal) kcal")
+        lines.append("║   Resting Heart Rate: \(db.restingHeartRate.map { "\($0) BPM" } ?? "n/a")")
+        lines.append("║   VO2 Max (latest): \(db.vo2MaxLatest.map { String(format: "%.1f mL/kg/min", $0) } ?? "n/a")")
+        if db.vo2MaxSamples.count >= 2 {
+            let oldest = db.vo2MaxSamples.first!
+            let newest = db.vo2MaxSamples.last!
+            let trend  = newest.value - oldest.value
+            let arrow  = trend > 0.2 ? "↑" : trend < -0.2 ? "↓" : "→"
+            lines.append("║   VO2 Max trend (\(db.vo2MaxSamples.count) readings, 4 weeks): \(arrow) \(String(format: "%+.1f", trend))")
+        }
+        if db.workoutComparisons.isEmpty {
+            lines.append("║   Today's workouts: none yet")
+        } else {
+            lines.append("║   Today's workouts vs same day last week:")
+            for w in db.workoutComparisons {
+                let todayStr = WorkoutComparison.formatDuration(w.todayMinutes)
+                let lastStr  = w.lastWeekDurationLabel
+                var delta = ""
+                if let pct = w.changePercent {
+                    delta = pct == 0 ? " (≈ same)" : String(format: " (%+d%%)", pct)
+                } else if w.lastWeekMinutes == nil {
+                    delta = " (new — N/A last wk)"
+                }
+                lines.append("║     • \(w.name): today \(todayStr), \(w.todayCalories) kcal | last wk \(lastStr)\(delta)")
+            }
+            lines.append("║   Today total: \(db.todayDurationLabel), \(db.todayTotalCalories) kcal")
+        }
 
         lines.append("╚══════════════════════════════════════════════════")
         lines.append("")

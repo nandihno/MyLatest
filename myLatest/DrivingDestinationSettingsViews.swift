@@ -11,6 +11,7 @@ import SwiftUI
 struct DrivingDestinationsView: View {
     @Environment(DrivingDestinationStore.self) private var store
     @State private var showAdd = false
+    @State private var editing: DrivingDestination?
 
     var body: some View {
         List {
@@ -21,14 +22,25 @@ struct DrivingDestinationsView: View {
                         .foregroundStyle(.tertiary)
                 } else {
                     ForEach(store.custom) { destination in
-                        DrivingDestinationRow(destination: destination)
+                        Button {
+                            editing = destination
+                        } label: {
+                            HStack {
+                                DrivingDestinationRow(destination: destination)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                        .buttonStyle(.plain)
                     }
                     .onDelete { store.delete(offsets: $0) }
                 }
             } header: {
                 Text("Saved Destinations (\(store.custom.count))")
             } footer: {
-                Text("These destinations are used on the Commuting tab to calculate current driving times from your device location. Swipe left to delete one.")
+                Text("These destinations are used on the Commuting tab to calculate current driving times from your device location. Tap to edit, swipe left to delete.")
             }
         }
         .navigationTitle("Driving Destinations")
@@ -43,18 +55,21 @@ struct DrivingDestinationsView: View {
         .sheet(isPresented: $showAdd) {
             AddDrivingDestinationView()
         }
+        .sheet(item: $editing) { destination in
+            EditDrivingDestinationView(destination: destination)
+        }
     }
 }
 
-private struct DrivingDestinationRow: View {
+struct DrivingDestinationRow: View {
     let destination: DrivingDestination
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(destination.name)
+            Text(destination.displayName)
                 .font(.body)
 
-            Text(destination.address)
+            Text(destination.displaySubtitle)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -67,6 +82,7 @@ struct AddDrivingDestinationView: View {
     @Environment(DrivingDestinationStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @StateObject private var searchModel = DestinationSearchModel()
+    @State private var customTitle = ""
 
     var body: some View {
         NavigationStack {
@@ -97,7 +113,16 @@ struct AddDrivingDestinationView: View {
 
                 if let selectedDestination = searchModel.selectedDestination {
                     Section {
-                        DrivingDestinationRow(destination: selectedDestination)
+                        TextField("e.g. Home, Work, Gym", text: $customTitle)
+                            .textInputAutocapitalization(.words)
+                    } header: {
+                        Text("Title (Optional)")
+                    } footer: {
+                        Text("Give this destination a friendly name. If left empty, the address will be shown instead.")
+                    }
+
+                    Section {
+                        DrivingDestinationRow(destination: selectedDestination.withTitle(customTitle))
                     } header: {
                         Text("Selected Destination")
                     }
@@ -151,9 +176,153 @@ struct AddDrivingDestinationView: View {
     }
 
     private func save() {
-        guard let destination = searchModel.selectedDestination else { return }
+        guard var destination = searchModel.selectedDestination else { return }
+        let trimmed = customTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        destination.title = trimmed.isEmpty ? nil : trimmed
         store.add(destination)
         dismiss()
+    }
+}
+
+struct EditDrivingDestinationView: View {
+    @Environment(DrivingDestinationStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+
+    let destination: DrivingDestination
+    @State private var editedTitle: String
+    @State private var showAddressSearch = false
+    @StateObject private var searchModel = DestinationSearchModel()
+
+    init(destination: DrivingDestination) {
+        self.destination = destination
+        _editedTitle = State(initialValue: destination.title ?? "")
+    }
+
+    private var resolvedDestination: DrivingDestination {
+        var updated = searchModel.selectedDestination ?? destination
+        let trimmed = editedTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        updated.title = trimmed.isEmpty ? nil : trimmed
+        if searchModel.selectedDestination == nil {
+            // Keep original id when only editing title
+            updated = DrivingDestination(
+                id: destination.id,
+                name: destination.name,
+                address: destination.address,
+                latitude: destination.latitude,
+                longitude: destination.longitude,
+                title: trimmed.isEmpty ? nil : trimmed
+            )
+        } else {
+            updated = DrivingDestination(
+                id: destination.id,
+                name: updated.name,
+                address: updated.address,
+                latitude: updated.latitude,
+                longitude: updated.longitude,
+                title: trimmed.isEmpty ? nil : trimmed
+            )
+        }
+        return updated
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("e.g. Home, Work, Gym", text: $editedTitle)
+                        .textInputAutocapitalization(.words)
+                } header: {
+                    Text("Title (Optional)")
+                } footer: {
+                    Text("Give this destination a friendly name. If left empty, the address will be shown instead.")
+                }
+
+                Section {
+                    DrivingDestinationRow(destination: resolvedDestination)
+                } header: {
+                    Text("Preview")
+                }
+
+                Section {
+                    if !showAddressSearch {
+                        Button("Change Address") {
+                            showAddressSearch = true
+                        }
+                    } else {
+                        TextField("Start typing a new address", text: $searchModel.query)
+                            .textInputAutocapitalization(.words)
+                            .autocorrectionDisabled()
+
+                        if searchModel.isSearching {
+                            HStack(spacing: 10) {
+                                ProgressView()
+                                Text("Searching Apple Maps…")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+
+                        if let errorMessage = searchModel.errorMessage {
+                            Text(errorMessage)
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                        }
+
+                        if searchModel.selectedDestination != nil {
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                                Text("New address selected")
+                                    .font(.subheadline)
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Address")
+                } footer: {
+                    if !showAddressSearch {
+                        Text(destination.address)
+                    }
+                }
+
+                if showAddressSearch && !searchModel.suggestions.isEmpty {
+                    Section {
+                        ForEach(searchModel.suggestions) { suggestion in
+                            Button {
+                                searchModel.select(suggestion)
+                            } label: {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(suggestion.title)
+                                        .foregroundStyle(.primary)
+                                    if !suggestion.subtitle.isEmpty {
+                                        Text(suggestion.subtitle)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    } header: {
+                        Text("Suggestions")
+                    }
+                }
+            }
+            .navigationTitle("Edit Destination")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel", role: .cancel) { dismiss() }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Save") {
+                        store.update(resolvedDestination)
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
+        }
     }
 }
 

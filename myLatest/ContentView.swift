@@ -1492,9 +1492,9 @@ private struct DrivingTimeRow: View {
         Button(action: openInMaps) {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(estimate.destination.name)
+                    Text(estimate.destination.displayName)
                         .font(.subheadline.weight(.semibold))
-                    Text(estimate.destination.address)
+                    Text(estimate.destination.displaySubtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -1755,7 +1755,7 @@ struct TrainCard: View {
                         VStack(alignment: .leading, spacing: 8) {
                             DepartureSectionView(stationName:      train.cityStationName,
                                                 departures:       train.cityStationDepartures,
-                                                splitByDirection: false,
+                                                splitByDirection: true,
                                                 showHeader:       false)
 
                             Divider()
@@ -1790,7 +1790,7 @@ struct TrainCard: View {
 
                                 DepartureSectionView(stationName:      train.cityStationName,
                                                     departures:       cityPlanAheadDepartures,
-                                                    splitByDirection: false,
+                                                    splitByDirection: true,
                                                     showHeader:       false)
                             }
                         }

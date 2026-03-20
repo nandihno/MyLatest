@@ -76,11 +76,11 @@ final class TrainService {
                                                 toCityOnly: nil)
             cityAllDeps = filterAndMapTimetable(timetableEntries,
                                                 station: cityStation,
-                                                toCityOnly: false)
+                                                toCityOnly: nil)
         }
 
-        // City station: outbound departures from the timetable endpoint,
-        // filtered to now → now + 30 minutes.
+        // City station: both inbound and outbound departures from the
+        // timetable endpoint, filtered to now → now + 30 minutes.
         let cityDeps: [TrainDeparture] = {
             guard !cityAllDeps.isEmpty else { return [] }
             let maxSeconds = nowSeconds + 1800  // +30 minutes
