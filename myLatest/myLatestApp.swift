@@ -27,6 +27,7 @@ struct myLatestApp: App {
                     HealthView()
                 }
             }
+            .tint(AppTheme.transport.dark.accent)
             .environment(stationStore)
             .environment(drivingDestinationStore)
             .environment(favouriteBusStopStore)

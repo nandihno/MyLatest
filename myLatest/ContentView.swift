@@ -115,6 +115,7 @@ struct ContentView: View {
     @AppStorage("transportMode") private var transportModeRaw: String = TransportMode.victorian.rawValue
 
     @Environment(DrivingDestinationStore.self) private var drivingDestinationStore
+    @Environment(\.colorScheme) private var colorScheme
     @State private var loadState: LoadState = .idle
     @State private var showSettings = false
 
@@ -132,11 +133,14 @@ struct ContentView: View {
                                        cityStation:   cityStation,
                                        drivingDestinations: drivingDestinationStore.all)
     }
+    private var palette: ThemePalette {
+        AppTheme.transport.palette(for: colorScheme)
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 20) {
+                VStack(spacing: 24) {
                     fetchButton
                     statusBanner
                     gtfsProgressBanner
@@ -146,11 +150,12 @@ struct ContentView: View {
             }
             .refreshable { await performFetch() }
             .navigationTitle("My Latest")
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showSettings = true } label: {
                         Image(systemName: "gearshape.fill")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(palette.accent)
                     }
                 }
             }
@@ -158,6 +163,7 @@ struct ContentView: View {
                 SettingsView(trainLineName: $trainLineName)
             }
         }
+        .screenTheme(AppTheme.transport)
     }
 
     // MARK: - Fetch button
@@ -166,19 +172,15 @@ struct ContentView: View {
         Button(action: fetchData) {
             HStack(spacing: 8) {
                 if loadState.isLoading {
-                    ProgressView().tint(.white).scaleEffect(0.85)
+                    ProgressView().tint(Color.black.opacity(0.82)).scaleEffect(0.85)
                 } else {
                     Image(systemName: "arrow.clockwise")
                 }
                 Text(loadState.isLoading ? "Fetching…" : "Fetch my latest")
             }
-            .font(.headline)
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(loadState.isLoading ? Color.accentColor.opacity(0.7) : Color.accentColor)
-            .foregroundStyle(.white)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
         }
+        .buttonStyle(TransitPrimaryButtonStyle())
+        .opacity(loadState.isLoading ? 0.82 : 1)
         .disabled(loadState.isLoading)
         .animation(.easeInOut(duration: 0.2), value: loadState.isLoading)
     }
@@ -194,8 +196,8 @@ struct ContentView: View {
             } icon: {
                 Image(systemName: "hand.tap")
             }
-            .font(.footnote)
-            .foregroundStyle(.secondary)
+            .font(.transit(13, weight: .medium))
+            .foregroundStyle(palette.textSecondary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 2)
             .transition(.opacity)
@@ -205,11 +207,11 @@ struct ContentView: View {
 
         case .loaded(let data):
             HStack(spacing: 4) {
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(AppTheme.success)
                 Text("Last updated at \(data.fetchedAt.formatted(date: .omitted, time: .shortened))")
             }
-            .font(.caption2)
-            .foregroundStyle(.secondary)
+            .font(.transit(12, weight: .medium))
+            .foregroundStyle(palette.textSecondary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 2)
             .transition(.opacity.combined(with: .move(edge: .top)))
@@ -227,22 +229,27 @@ struct ContentView: View {
                     .scaleEffect(0.8)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(progress.stage)
-                        .font(.caption.bold())
+                        .font(.transit(13, weight: .bold))
+                        .foregroundStyle(palette.textPrimary)
                     if !progress.detail.isEmpty {
                         Text(progress.detail)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .font(.transit(12, weight: .medium))
+                            .foregroundStyle(palette.textSecondary)
                     }
                     Text("This only happens once.")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .font(.transit(12, weight: .medium))
+                        .foregroundStyle(palette.textTertiary)
                         .italic()
                 }
                 Spacer()
             }
             .padding(12)
-            .background(Color.accentColor.opacity(0.1))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .background(palette.mutedPanelBackground)
+            .overlay {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(palette.accentStrong.opacity(0.18), lineWidth: 1)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .transition(.opacity.combined(with: .move(edge: .top)))
         }
     }
@@ -314,6 +321,7 @@ struct ContentView: View {
 struct WeatherView: View {
     @AppStorage("claudeApiKey") private var claudeApiKey: String = ""
     @AppStorage("aiProvider") private var aiProviderRaw: String = AIProvider.appleIntelligence.rawValue
+    @Environment(\.colorScheme) private var colorScheme
     @State private var weather = MockDataService.mockWeather()
     @State private var forecastInfo: DailyForecastInfo?
     @State private var hourlyForecast: HourlyForecastInfo?
@@ -335,11 +343,14 @@ struct WeatherView: View {
     private var poweredByLabel: String {
         aiProvider == .claude ? "Powered by Claude" : "Powered by Apple Intelligence"
     }
+    private var palette: ThemePalette {
+        AppTheme.weather.palette(for: colorScheme)
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 20) {
+                VStack(spacing: 24) {
                     fetchButton
                     statusBanner
                     WeatherCard(weather: weather, title: "Weather Stations")
@@ -357,25 +368,22 @@ struct WeatherView: View {
             }
             .sheet(isPresented: $showAnalysis) { analysisSheet }
         }
+        .screenTheme(AppTheme.weather)
     }
 
     private var fetchButton: some View {
         Button(action: fetchWeather) {
             HStack(spacing: 8) {
                 if isLoading {
-                    ProgressView().tint(.white).scaleEffect(0.85)
+                    ProgressView().tint(Color.black.opacity(0.82)).scaleEffect(0.85)
                 } else {
                     Image(systemName: "arrow.clockwise")
                 }
                 Text(isLoading ? "Fetching..." : "Fetch weather")
             }
-            .font(.headline)
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(isLoading ? Color.accentColor.opacity(0.7) : Color.accentColor)
-            .foregroundStyle(.white)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
         }
+        .buttonStyle(TransitPrimaryButtonStyle())
+        .opacity(isLoading ? 0.82 : 1)
         .disabled(isLoading)
         .animation(.easeInOut(duration: 0.2), value: isLoading)
     }
@@ -385,10 +393,10 @@ struct WeatherView: View {
             Text(statusMessage)
         } icon: {
             Image(systemName: usingFallbackData ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
-                .foregroundStyle(usingFallbackData ? .orange : .green)
+                .foregroundStyle(usingFallbackData ? AppTheme.warning : AppTheme.success)
         }
-        .font(.footnote)
-        .foregroundStyle(.secondary)
+        .font(.transit(13, weight: .medium))
+        .foregroundStyle(palette.textSecondary)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 2)
     }
@@ -397,10 +405,7 @@ struct WeatherView: View {
 
     private var weatherAnalyseCard: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color.blue.opacity(0.18), Color.indigo.opacity(0.12)],
-                startPoint: .topLeading, endPoint: .bottomTrailing
-            )
+            palette.mutedPanelBackground
             .clipShape(RoundedRectangle(cornerRadius: 16))
 
             VStack(alignment: .leading, spacing: 10) {
@@ -410,17 +415,17 @@ struct WeatherView: View {
                         .symbolRenderingMode(.multicolor)
                     VStack(alignment: .leading, spacing: 1) {
                         Text("AI Weather Briefing")
-                            .font(.headline)
+                            .font(.transit(18, weight: .bold))
                         Text(poweredByLabel)
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(palette.textSecondary)
                     }
                 }
 
                 if aiProvider == .claude && claudeApiKey.isEmpty {
                     Label("Add your Claude API key in Settings to enable.", systemImage: "key.fill")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
 
                 Button(action: analyseWeather) {
@@ -428,19 +433,9 @@ struct WeatherView: View {
                         Image(systemName: "sparkles")
                         Text(hasLoaded ? "Get My Weather Briefing" : "Load forecast first")
                     }
-                    .font(.subheadline.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 11)
-                    .background(
-                        !aiIsAvailable || !hasLoaded
-                        ? LinearGradient(colors: [.gray.opacity(0.3), .gray.opacity(0.25)],
-                                         startPoint: .leading, endPoint: .trailing)
-                        : LinearGradient(colors: [.blue, .indigo],
-                                         startPoint: .leading, endPoint: .trailing)
-                    )
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
+                .buttonStyle(TransitPrimaryButtonStyle())
+                .opacity(!aiIsAvailable || !hasLoaded ? 0.45 : 1)
                 .disabled(!aiIsAvailable || !hasLoaded)
             }
             .padding(16)
@@ -453,20 +448,17 @@ struct WeatherView: View {
                 VStack(spacing: 0) {
                     // ── Gradient header ──────────────────────────────────
                     ZStack {
-                        LinearGradient(
-                            colors: [Color.blue.opacity(0.75), Color.indigo.opacity(0.55)],
-                            startPoint: .topLeading, endPoint: .bottomTrailing
-                        )
+                        palette.buttonBackground
                         VStack(spacing: 8) {
                             Image(systemName: "cloud.sun.bolt.fill")
                                 .font(.system(size: 44))
                                 .symbolRenderingMode(.multicolor)
                             Text("Weather Briefing")
-                                .font(.title2.weight(.semibold))
-                                .foregroundStyle(.white)
+                                .font(.transit(30, weight: .heavy))
+                                .foregroundStyle(palette.buttonForeground)
                             Text(Date().formatted(date: .abbreviated, time: .shortened))
                                 .font(.caption)
-                                .foregroundStyle(.white.opacity(0.8))
+                                .foregroundStyle(palette.buttonForeground.opacity(0.72))
                         }
                         .padding(.vertical, 28)
                     }
@@ -1414,6 +1406,7 @@ struct CalendarCard: View {
 struct DrivingTimesCard: View {
     let estimates: [DrivingTimeEstimate]
     let provider: DrivingProvider
+    @Environment(\.themePalette) private var palette
 
     private var poweredByText: String {
         switch provider {
@@ -1427,12 +1420,12 @@ struct DrivingTimesCard: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Label("Driving Times", systemImage: "car.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                        .font(.transit(14, weight: .bold))
+                        .foregroundStyle(palette.accent)
                     Spacer()
                     Text(poweredByText)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .font(.transit(11, weight: .medium))
+                        .foregroundStyle(palette.textTertiary)
                 }
 
                 if estimates.isEmpty {
@@ -1457,9 +1450,10 @@ private struct DrivingTimeRow: View {
     let estimate: DrivingTimeEstimate
     let provider: DrivingProvider
     @Environment(\.openURL) private var openURL
+    @Environment(\.themePalette) private var palette
 
     private var accentColor: Color {
-        estimate.hasDelay ? .red : .green
+        estimate.hasDelay ? AppTheme.danger : AppTheme.success
     }
 
     private var statusText: String {
@@ -1493,10 +1487,11 @@ private struct DrivingTimeRow: View {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(estimate.destination.displayName)
-                        .font(.subheadline.weight(.semibold))
+                        .font(.transit(18, weight: .bold))
+                        .foregroundStyle(palette.textPrimary)
                     Text(estimate.destination.displaySubtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(.transit(13, weight: .medium))
+                        .foregroundStyle(palette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
@@ -1505,26 +1500,26 @@ private struct DrivingTimeRow: View {
                 if let errorMessage = estimate.errorMessage {
                     VStack(alignment: .trailing, spacing: 4) {
                         Text("Unavailable")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.red)
+                            .font(.transit(18, weight: .bold))
+                            .foregroundStyle(AppTheme.danger)
                         Text(errorMessage)
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(palette.textSecondary)
                             .multilineTextAlignment(.trailing)
                     }
                 } else if let travelMinutes = estimate.travelMinutes {
                     VStack(alignment: .trailing, spacing: 4) {
                         Text("\(travelMinutes) min")
-                            .font(.title3.weight(.bold))
+                            .font(.transit(28, weight: .heavy))
                             .foregroundStyle(accentColor)
                         Text(statusText)
-                            .font(.caption2.weight(.medium))
+                            .font(.transit(12, weight: .bold))
                             .foregroundStyle(accentColor)
                             .multilineTextAlignment(.trailing)
                         if let advisory = estimate.advisory {
                             Text(advisory)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
+                                .font(.transit(12, weight: .medium))
+                                .foregroundStyle(palette.textSecondary)
                                 .multilineTextAlignment(.trailing)
                         }
                     }
@@ -1538,6 +1533,7 @@ private struct DrivingTimeRow: View {
 struct EventRow: View {
     let event: CalendarEvent
     @Environment(\.openURL) private var openURL
+    @Environment(\.themePalette) private var palette
     @State private var showDetail = false
 
     private var timeText: String {
@@ -1550,20 +1546,20 @@ struct EventRow: View {
         Button(action: openEvent) {
             HStack(alignment: .top, spacing: 12) {
                 RoundedRectangle(cornerRadius: 3)
-                    .fill(Color.accentColor)
+                    .fill(palette.accent)
                     .frame(width: 4, height: 40)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(event.title)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.primary)
+                        .font(.transit(16, weight: .bold))
+                        .foregroundStyle(palette.textPrimary)
                     Text(timeText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(.transit(12, weight: .medium))
+                        .foregroundStyle(palette.textSecondary)
                     if let location = event.location {
                         Label(location, systemImage: "mappin.and.ellipse")
                             .font(.caption2)
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(palette.textTertiary)
                     }
                 }
 
@@ -1571,7 +1567,7 @@ struct EventRow: View {
 
                 Image(systemName: "chevron.right")
                     .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(palette.textTertiary)
             }
         }
         .buttonStyle(.plain)
@@ -1596,6 +1592,7 @@ struct EventRow: View {
 
 struct TrainCard: View {
     let train: TrainInfo
+    @Environment(\.themePalette) private var palette
     @State private var showHomeStation = true
     @State private var showCityStation = false
     @State private var showPlannedWorks = false
@@ -1663,23 +1660,27 @@ struct TrainCard: View {
                 // ── Header ────────────────────────────────────────────────
                 HStack {
                     Label("Train Status", systemImage: "tram.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                        .font(.transit(14, weight: .bold))
+                        .foregroundStyle(palette.accent)
                     Spacer()
                     Label(train.melbourneTimeAtFetch, systemImage: "clock")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .font(.transit(11, weight: .bold))
+                        .foregroundStyle(palette.textSecondary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(palette.surfaceRaised, in: Capsule())
                 }
 
                 // ── Line name + service status ────────────────────────────
                 VStack(alignment: .leading, spacing: 6) {
                     Text(train.lineName)
-                        .font(.subheadline.weight(.semibold))
+                        .font(.transit(24, weight: .heavy))
+                        .foregroundStyle(palette.textPrimary)
 
                     if train.serviceIsGood {
                         Label(train.serviceStatusMessage, systemImage: "checkmark.circle.fill")
-                            .font(.caption)
-                            .foregroundStyle(.green)
+                            .font(.transit(13, weight: .bold))
+                            .foregroundStyle(AppTheme.success)
                             .lineLimit(2)
                     } else {
                         ForEach(train.alerts) { alert in
@@ -1688,7 +1689,7 @@ struct TrainCard: View {
                         if train.alerts.isEmpty {
                             Text(train.serviceStatusMessage)
                                 .font(.caption)
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(AppTheme.warning)
                         }
                     }
                 }
@@ -1828,12 +1829,13 @@ struct TrainCard: View {
 
 struct TrainAlertRow: View {
     let alert: TrainServiceAlert
+    @Environment(\.themePalette) private var palette
 
     private var alertColor: Color {
         switch alert.alertType.lowercased() {
-        case "major": return .red
-        case "minor": return .orange
-        default:      return .yellow
+        case "major": return AppTheme.danger
+        case "minor": return AppTheme.warning
+        default:      return palette.accentStrong
         }
     }
 
@@ -1870,6 +1872,7 @@ struct TrainAlertRow: View {
 struct DepartureSectionView: View {
     let stationName: String
     let departures: [TrainDeparture]
+    @Environment(\.themePalette) private var palette
     /// When true the list is split into separate Inbound / Outbound sub-sections.
     var splitByDirection: Bool = false
     /// When false, the "From <station>" header is hidden (useful when a parent DisclosureGroup already shows it).
@@ -1885,19 +1888,20 @@ struct DepartureSectionView: View {
                 HStack(spacing: 5) {
                     Image(systemName: "mappin.circle.fill")
                         .font(.caption)
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(palette.accent)
                     Text("From \(stationName)")
-                        .font(.caption.weight(.semibold))
+                        .font(.transit(13, weight: .bold))
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
 
             if splitByDirection {
                 directionSubSection(label:  "Inbound → City",
-                                    color:  .blue,
+                                    color:  AppTheme.info,
                                     symbol: "arrow.up.circle.fill",
                                     rows:   inbound)
                 directionSubSection(label:  "Outbound → Home",
-                                    color:  .orange,
+                                    color:  palette.accent,
                                     symbol: "arrow.down.circle.fill",
                                     rows:   outbound)
             } else {
@@ -1932,7 +1936,7 @@ struct DepartureSectionView: View {
             if rows.isEmpty {
                 Text("No upcoming trains")
                     .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(palette.textTertiary)
                     .italic()
                     .padding(.leading, 4)
             } else {
@@ -1954,7 +1958,7 @@ struct DepartureSectionView: View {
                 Text("Dir")     .gridColumnAlignment(.leading)
             }
             .font(.caption2.weight(.semibold))
-            .foregroundStyle(.tertiary)
+            .foregroundStyle(palette.textTertiary)
 
             // One row per departure
             ForEach(rows) { dep in
@@ -1966,7 +1970,7 @@ struct DepartureSectionView: View {
                     directionView(dep.isToCity)
                 }
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(palette.textSecondary)
             }
         }
     }
@@ -1975,7 +1979,7 @@ struct DepartureSectionView: View {
     private func directionView(_ isToCity: Bool) -> some View {
         HStack(spacing: 3) {
             Image(systemName: isToCity ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
-                .foregroundStyle(isToCity ? Color.blue : Color.orange)
+                .foregroundStyle(isToCity ? AppTheme.info : palette.accent)
             Text(isToCity ? "In" : "Out")
         }
         .font(.caption2)
@@ -1987,6 +1991,7 @@ struct DepartureSectionView: View {
 struct TrainPlannedWorkRow: View {
     let work: TrainPlannedWork
     @Environment(\.openURL) private var openURL
+    @Environment(\.themePalette) private var palette
 
     private var badge: (text: String, color: Color) {
         work.upcomingCurrent.lowercased() == "current"
@@ -2023,13 +2028,13 @@ struct TrainPlannedWorkRow: View {
 
                 Spacer()
 
-                if !work.link.isEmpty {
-                    Image(systemName: "arrow.up.right.square")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                    if !work.link.isEmpty {
+                        Image(systemName: "arrow.up.right.square")
+                            .font(.caption2)
+                            .foregroundStyle(palette.textTertiary)
+                    }
                 }
             }
-        }
         .buttonStyle(.plain)
     }
 }
@@ -2042,10 +2047,7 @@ struct CardContainer<Content: View>: View {
 
     var body: some View {
         content
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .transitCardStyle()
     }
 }
 
@@ -2053,6 +2055,7 @@ struct CardContainer<Content: View>: View {
 
 struct BusCard: View {
     let busInfo: BusInfo
+    @Environment(\.themePalette) private var palette
 
     var body: some View {
         CardContainer {
@@ -2060,23 +2063,27 @@ struct BusCard: View {
                 // Header
                 HStack {
                     Label("Bus Departures", systemImage: "bus.fill")
-                        .font(.headline)
+                        .font(.transit(18, weight: .bold))
+                        .foregroundStyle(palette.accent)
                     Spacer()
                     Text(busInfo.brisbaneTimeAtFetch)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(.transit(11, weight: .bold))
+                        .foregroundStyle(palette.textSecondary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(palette.surfaceRaised, in: Capsule())
                 }
 
                 if !busInfo.locationAvailable {
                     Label("Location unavailable. Enable Location Services to see nearby bus stops.",
                           systemImage: "location.slash.fill")
                         .font(.subheadline)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(AppTheme.warning)
                 } else if busInfo.nearbyStops.isEmpty && busInfo.favouriteStops.isEmpty {
                     Label("No bus stops found within 300m. Add favourite stops in Settings.",
                           systemImage: "mappin.slash")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(palette.textSecondary)
                 } else {
                     // Alerts
                     ForEach(busInfo.alerts) { alert in
@@ -2087,7 +2094,7 @@ struct BusCard: View {
                     if !busInfo.nearbyStops.isEmpty {
                         Label("Nearby", systemImage: "location.fill")
                             .font(.caption.bold())
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(palette.textSecondary)
                             .padding(.top, 4)
                         ForEach(busInfo.nearbyStops) { stop in
                             BusStopSection(stop: stop)
@@ -2102,7 +2109,7 @@ struct BusCard: View {
                         }
                         Label("Favourites", systemImage: "star.fill")
                             .font(.caption.bold())
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(palette.accent)
                         ForEach(busInfo.favouriteStops) { stop in
                             BusStopSection(stop: stop)
                         }
@@ -2118,6 +2125,7 @@ struct BusCard: View {
 struct BusAlertRow: View {
     let alert: BusAlert
 
+    @Environment(\.themePalette) private var palette
     @State private var isExpanded = false
 
     var body: some View {
@@ -2144,20 +2152,20 @@ struct BusAlertRow: View {
             if isExpanded, let desc = alert.descriptionText {
                 Text(desc)
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.textSecondary)
                     .padding(.leading, 28)
             }
         }
         .padding(8)
-        .background(alertColor.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .background(alertColor.opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private var alertColor: Color {
         switch alert.severity {
-        case .severe:  return .red
-        case .warning: return .orange
-        case .info:    return .blue
+        case .severe:  return AppTheme.danger
+        case .warning: return AppTheme.warning
+        case .info:    return AppTheme.info
         }
     }
 }
@@ -2167,6 +2175,7 @@ struct BusAlertRow: View {
 struct BusStopSection: View {
     let stop: NearbyBusStop
 
+    @Environment(\.themePalette) private var palette
     @State private var isExpanded = false
 
     var body: some View {
@@ -2178,24 +2187,25 @@ struct BusStopSection: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(stop.stopName)
-                            .font(.subheadline.bold())
+                            .font(.transit(17, weight: .bold))
+                            .foregroundStyle(palette.textPrimary)
                         if let code = stop.stopCode {
                             Text("Stop #\(code)")
                                 .font(.caption2)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(palette.textSecondary)
                         }
                     }
                     Spacer()
                     Text("\(stop.distanceMeters)m away")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(.transit(12, weight: .bold))
+                        .foregroundStyle(palette.textSecondary)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(Color(.tertiarySystemBackground))
+                        .background(palette.surfaceRaised)
                         .clipShape(Capsule())
                     Image(systemName: "chevron.right")
                         .font(.caption.bold())
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(palette.textSecondary)
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))
                 }
             }
@@ -2217,23 +2227,25 @@ struct BusStopSection: View {
 
 struct BusDepartureRow: View {
     let departure: BusDeparture
+    @Environment(\.themePalette) private var palette
 
     var body: some View {
         HStack(spacing: 10) {
             // Route badge
             Text(departure.routeShortName)
-                .font(.caption.bold().monospacedDigit())
-                .foregroundStyle(.white)
-                .frame(minWidth: 36)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 4)
-                .background(Color.accentColor)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .font(.transit(14, weight: .heavy).monospacedDigit())
+                .foregroundStyle(Color.black.opacity(0.84))
+                .frame(minWidth: 42)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .background(palette.buttonBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
             // Headsign / route name
             VStack(alignment: .leading, spacing: 1) {
                 Text(departure.headsign ?? departure.routeLongName)
-                    .font(.caption)
+                    .font(.transit(14, weight: .bold))
+                    .foregroundStyle(palette.textPrimary)
                     .lineLimit(1)
                 timeDetailLine
             }
@@ -2244,13 +2256,14 @@ struct BusDepartureRow: View {
             VStack(alignment: .trailing, spacing: 2) {
                 HStack(spacing: 4) {
                     Text("\(departure.minutesAway)")
-                        .font(.subheadline.bold().monospacedDigit())
+                        .font(.transit(24, weight: .heavy).monospacedDigit())
+                        .foregroundStyle(palette.textPrimary)
                     Text("min")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .font(.transit(12, weight: .bold))
+                        .foregroundStyle(palette.textSecondary)
                 }
                 Text(departure.status.rawValue)
-                    .font(.caption2.bold())
+                    .font(.transit(12, weight: .bold))
                     .foregroundStyle(statusColor)
             }
         }
@@ -2262,7 +2275,7 @@ struct BusDepartureRow: View {
         HStack(spacing: 4) {
             Text("Sched \(departure.scheduledTime)")
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(palette.textSecondary)
 
             if let predicted = departure.predictedTime {
                 Text("Pred \(predicted)")
@@ -2283,11 +2296,11 @@ struct BusDepartureRow: View {
 
     private var statusColor: Color {
         switch departure.status {
-        case .onTime:  return .green
-        case .early:   return .blue
-        case .late:    return .orange
-        case .noData:  return .secondary
-        case .skipped: return .red
+        case .onTime:  return AppTheme.success
+        case .early:   return AppTheme.info
+        case .late:    return AppTheme.warning
+        case .noData:  return palette.textSecondary
+        case .skipped: return AppTheme.danger
         }
     }
 }

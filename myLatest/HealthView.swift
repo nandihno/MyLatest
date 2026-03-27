@@ -18,6 +18,7 @@ struct HealthView: View {
 
     @AppStorage("claudeApiKey") private var claudeApiKey: String = ""
     @AppStorage("aiProvider") private var aiProviderRaw: String = AIProvider.appleIntelligence.rawValue
+    @Environment(\.colorScheme) private var colorScheme
     @AppStorage("userAge")      private var userAge:      String = ""
     @AppStorage("userExtraInformation") private var userExtraInformation: String = ""
     @State private var isAnalysing    = false
@@ -33,6 +34,9 @@ struct HealthView: View {
     private var poweredByLabel: String {
         aiProvider == .claude ? "Powered by Claude" : "Powered by Apple Intelligence"
     }
+    private var palette: ThemePalette {
+        AppTheme.health.palette(for: colorScheme)
+    }
 
     var body: some View {
         NavigationStack {
@@ -47,6 +51,7 @@ struct HealthView: View {
             .navigationBarTitleDisplayMode(.large)
             .sheet(isPresented: $showAnalysis) { analysisSheet }
         }
+        .screenTheme(AppTheme.health)
         .task { await load() }
     }
 
@@ -68,11 +73,11 @@ struct HealthView: View {
             VStack(spacing: 16) {
                 if let lastUpdatedAt {
                     HStack(spacing: 4) {
-                        Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                        Image(systemName: "checkmark.circle.fill").foregroundStyle(AppTheme.success)
                         Text("Last updated at \(lastUpdatedAt.formatted(date: .omitted, time: .shortened))")
                     }
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .font(.transit(12, weight: .medium))
+                    .foregroundStyle(palette.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 DailyBriefCard(brief: healthData!.dailyBrief, userAge: Int(userAge) ?? 0)
@@ -106,10 +111,7 @@ struct HealthView: View {
 
     private var claudeAnalyseCard: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color.purple.opacity(0.18), Color.pink.opacity(0.12)],
-                startPoint: .topLeading, endPoint: .bottomTrailing
-            )
+            palette.mutedPanelBackground
             .clipShape(RoundedRectangle(cornerRadius: 16))
 
             VStack(alignment: .leading, spacing: 10) {
@@ -119,17 +121,17 @@ struct HealthView: View {
                         .symbolRenderingMode(.multicolor)
                     VStack(alignment: .leading, spacing: 1) {
                         Text("AI Health Briefing")
-                            .font(.headline)
+                            .font(.transit(18, weight: .bold))
                         Text(poweredByLabel)
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(palette.textSecondary)
                     }
                 }
 
                 if aiProvider == .claude && claudeApiKey.isEmpty {
                     Label("Add your Claude API key in Settings to enable.", systemImage: "key.fill")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
 
                 Button(action: analyseHealth) {
@@ -137,19 +139,9 @@ struct HealthView: View {
                         Image(systemName: "sparkles")
                         Text("Get My Health Briefing")
                     }
-                    .font(.subheadline.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 11)
-                    .background(
-                        !aiIsAvailable
-                        ? LinearGradient(colors: [.gray.opacity(0.3), .gray.opacity(0.25)],
-                                         startPoint: .leading, endPoint: .trailing)
-                        : LinearGradient(colors: [.purple, .pink],
-                                         startPoint: .leading, endPoint: .trailing)
-                    )
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
+                .buttonStyle(TransitPrimaryButtonStyle())
+                .opacity(!aiIsAvailable ? 0.45 : 1)
                 .disabled(!aiIsAvailable)
             }
             .padding(16)
@@ -162,20 +154,17 @@ struct HealthView: View {
                 VStack(spacing: 0) {
                     // ── Gradient header ──────────────────────────────────
                     ZStack {
-                        LinearGradient(
-                            colors: [Color.purple.opacity(0.75), Color.pink.opacity(0.55)],
-                            startPoint: .topLeading, endPoint: .bottomTrailing
-                        )
+                        palette.buttonBackground
                         VStack(spacing: 8) {
                             Image(systemName: "brain.head.profile.fill")
                                 .font(.system(size: 44))
                                 .symbolRenderingMode(.multicolor)
                             Text("Health Briefing")
-                                .font(.title2.weight(.semibold))
-                                .foregroundStyle(.white)
+                                .font(.transit(30, weight: .heavy))
+                                .foregroundStyle(palette.buttonForeground)
                             Text(Date().formatted(date: .abbreviated, time: .shortened))
                                 .font(.caption)
-                                .foregroundStyle(.white.opacity(0.8))
+                                .foregroundStyle(palette.buttonForeground.opacity(0.72))
                         }
                         .padding(.vertical, 28)
                     }
@@ -287,6 +276,7 @@ struct HealthView: View {
 private struct DailyBriefCard: View {
     let brief: DailyBrief
     let userAge: Int
+    @Environment(\.themePalette) private var palette
 
     // MARK: - VO2 Max age-based reference ranges
 
@@ -438,16 +428,16 @@ private struct DailyBriefCard: View {
                 if let insight = insightText {
                     HStack(alignment: .top, spacing: 8) {
                         Circle()
-                            .fill(.blue)
+                            .fill(AppTheme.info)
                             .frame(width: 7, height: 7)
                             .padding(.top, 5)
                         Text(insight)
                             .font(.subheadline)
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(palette.textPrimary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(12)
-                    .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12))
+                    .background(palette.surfaceRaised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
 
                 // ── VO2 Max trend ──────────────────────────────────────
@@ -477,12 +467,12 @@ private struct DailyBriefCard: View {
                 if !unit.isEmpty {
                     Text(unit)
                         .font(.system(size: 9))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
             Text(label)
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(palette.textSecondary)
 
             // Quality badge
             Text(badge.label)
@@ -494,7 +484,7 @@ private struct DailyBriefCard: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
-        .background(color.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
+        .background(palette.surfaceRaised.opacity(0.86), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     // MARK: - VO2 Max trend with reference zones
@@ -600,11 +590,11 @@ private struct DailyBriefCard: View {
             if userAge > 0 {
                 Text("Shaded zone = excellent range for your age group (\(userAge)). Based on standard VO2 Max reference tables.")
                     .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(palette.textTertiary)
             }
         }
         .padding(12)
-        .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12))
+        .background(palette.surfaceRaised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     // MARK: - Today's workouts with comparison
@@ -618,21 +608,21 @@ private struct DailyBriefCard: View {
                 if brief.workoutComparisons.isEmpty {
                     Text("Rest day")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(palette.textSecondary)
                 } else {
                     Text("In progress")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
 
             if brief.workoutComparisons.isEmpty {
                 HStack(spacing: 8) {
                     Image(systemName: "figure.stand")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(palette.textSecondary)
                     Text("No workouts logged yet today")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(palette.textSecondary)
                 }
                 .padding(.vertical, 4)
             } else {
@@ -647,10 +637,10 @@ private struct DailyBriefCard: View {
             // Footer explainer
             Text("Week-on-week comparison shown at end of day.")
                 .font(.caption2)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(palette.textTertiary)
         }
         .padding(12)
-        .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12))
+        .background(palette.surfaceRaised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     @ViewBuilder
