@@ -9,6 +9,14 @@
 import Foundation
 import HealthKit
 
+private let weeklyDistanceUnit = HKUnit.meterUnit(with: .kilo)
+
+private func weeklyDistanceWeekdayIndex(for date: Date, calendar: Calendar) -> Int {
+    let weekday = calendar.component(.weekday, from: date)
+    // weekday: 1=Sun 2=Mon … 7=Sat  →  index: 0=Mon … 6=Sun
+    return (weekday - 2 + 7) % 7
+}
+
 @MainActor
 final class HealthService {
     static let shared = HealthService()
@@ -37,7 +45,6 @@ final class HealthService {
     private var vo2MaxType: HKQuantityType {
         HKQuantityType(.vo2Max)
     }
-
     // MARK: - Public API
 
     func fetchHealthData() async -> HealthData {
@@ -297,7 +304,11 @@ final class HealthService {
             for w in workouts {
                 let name = workoutTypeName(w.workoutActivityType)
                 let mins = Int(w.duration / 60)
-                let cals = Int(w.totalEnergyBurned?.doubleValue(for: energyUnit) ?? 0)
+                let cals = Int(
+                    (w.statistics(for: HKQuantityType(.activeEnergyBurned))?.sumQuantity()
+                     ?? w.totalEnergyBurned)?
+                    .doubleValue(for: energyUnit) ?? 0
+                )
                 let existing = dict[name] ?? (0, 0)
                 dict[name] = (existing.minutes + mins, existing.calories + cals)
             }
@@ -499,12 +510,24 @@ final class HealthService {
         let thisWeekStart = melbCal.date(from: weekComps)!
         let lastWeekStart = melbCal.date(byAdding: .weekOfYear, value: -1, to: thisWeekStart)!
 
-        // Fetch distance and workouts for both weeks concurrently.
-        async let thisDistTask = fetchDailyDistances(from: thisWeekStart, to: now,              calendar: melbCal)
-        async let lastDistTask = fetchDailyDistances(from: lastWeekStart, to: thisWeekStart, calendar: melbCal)
+        // Fetch base distance samples and workouts for both weeks concurrently.
+        async let thisBaseDistTask = fetchDailyDistanceSamples(from: thisWeekStart, to: now, calendar: melbCal)
+        async let lastBaseDistTask = fetchDailyDistanceSamples(from: lastWeekStart, to: thisWeekStart, calendar: melbCal)
         async let thisWorkTask = fetchWorkouts(from: thisWeekStart, to: now)
         async let lastWorkTask = fetchWorkouts(from: lastWeekStart, to: thisWeekStart)
-        let (thisDist, lastDist, thisWork, lastWork) = await (thisDistTask, lastDistTask, thisWorkTask, lastWorkTask)
+        let (thisBaseDist, lastBaseDist, thisWork, lastWork) =
+            await (thisBaseDistTask, lastBaseDistTask, thisWorkTask, lastWorkTask)
+
+        // Treadmill sessions can carry distance on HKWorkout.totalDistance without
+        // emitting matching distanceWalkingRunning samples. Add only the missing
+        // indoor walking/running portion so we keep daily movement totals intact.
+        async let thisIndoorSupplementTask = fetchIndoorWorkoutDistanceSupplements(for: thisWork, calendar: melbCal)
+        async let lastIndoorSupplementTask = fetchIndoorWorkoutDistanceSupplements(for: lastWork, calendar: melbCal)
+        let (thisIndoorSupplement, lastIndoorSupplement) =
+            await (thisIndoorSupplementTask, lastIndoorSupplementTask)
+
+        let thisDist = mergeDailyDistanceData(base: thisBaseDist, supplements: thisIndoorSupplement)
+        let lastDist = mergeDailyDistanceData(base: lastBaseDist, supplements: lastIndoorSupplement)
 
         // Build the 7-day distance array (Mon → Sun).
         let days: [WeeklyDistanceDay] = (0..<7).map { i in
@@ -539,11 +562,11 @@ final class HealthService {
         return WorkoutData(weeklyDistance: distanceData, activities: activities)
     }
 
-    /// Fetches cumulative walking/running distance per weekday-index (0=Mon…6=Sun)
+    /// Fetches cumulative distanceWalkingRunning samples per weekday-index (0=Mon…6=Sun)
     /// for the given time window, using HealthKit's statistics collection so overlapping
     /// sources (iPhone + Watch) are automatically deduplicated.
-    private func fetchDailyDistances(from start: Date, to end: Date,
-                                     calendar: Calendar) async -> [Int: Double] {
+    private func fetchDailyDistanceSamples(from start: Date, to end: Date,
+                                           calendar: Calendar) async -> [Int: Double] {
         let predicate = HKQuery.predicateForSamples(withStart: start, end: end,
                                                     options: .strictStartDate)
         // Anchor daily buckets to midnight at the start of the window.
@@ -566,14 +589,89 @@ final class HealthService {
                 var daily: [Int: Double] = [:]
                 results.enumerateStatistics(from: start, to: end) { stats, _ in
                     guard let sum = stats.sumQuantity() else { return }
-                    let km      = sum.doubleValue(for: HKUnit.meterUnit(with: .kilo))
-                    let weekday = calendar.component(.weekday, from: stats.startDate)
-                    // weekday: 1=Sun 2=Mon … 7=Sat  →  index: 0=Mon … 6=Sun
-                    daily[(weekday - 2 + 7) % 7] = km
+                    let km = sum.doubleValue(for: weeklyDistanceUnit)
+                    daily[weeklyDistanceWeekdayIndex(for: stats.startDate, calendar: calendar)] = km
                 }
                 cont.resume(returning: daily)
             }
             store.execute(q)
+        }
+    }
+
+    /// Adds the missing portion of indoor walking/running workout distance that
+    /// is present on workout statistics but not reflected in quantity samples.
+    private func fetchIndoorWorkoutDistanceSupplements(for workouts: [HKWorkout],
+                                                       calendar: Calendar) async -> [Int: Double] {
+        let indoorWorkouts = workouts.filter(isIndoorWalkingOrRunningWorkout)
+        guard !indoorWorkouts.isEmpty else { return [:] }
+
+        var daily: [Int: Double] = [:]
+        for workout in indoorWorkouts {
+            // Use statistics(for:) — the modern API. Fall back to the deprecated
+            // totalDistance for workouts recorded before iOS 17.
+            let distanceQuantity =
+                workout.statistics(for: HKQuantityType(.distanceWalkingRunning))?.sumQuantity()
+                ?? workout.totalDistance
+            guard let distanceQuantity else { continue }
+
+            let workoutKm = distanceQuantity.doubleValue(for: weeklyDistanceUnit)
+            guard workoutKm > 0 else { continue }
+
+            // For indoor workouts the Watch's workout distance is the
+            // authoritative source. The base HKStatisticsCollectionQuery
+            // unreliably captures Watch indoor distance due to HealthKit
+            // source-preference behaviour. Add the full workout distance;
+            // minor overlap with iPhone pedometer data in the base is
+            // negligible compared to missing indoor distance entirely.
+            addDistance(workoutKm,
+                        from: workout.startDate,
+                        to: workout.endDate,
+                        calendar: calendar,
+                        into: &daily)
+        }
+
+        return daily
+    }
+
+    private func isIndoorWalkingOrRunningWorkout(_ workout: HKWorkout) -> Bool {
+        switch workout.workoutActivityType {
+        case .walking, .running:
+            return workout.metadata?[HKMetadataKeyIndoorWorkout] as? Bool == true
+        default:
+            return false
+        }
+    }
+
+    private func mergeDailyDistanceData(base: [Int: Double],
+                                        supplements: [Int: Double]) -> [Int: Double] {
+        var merged = base
+        for (dayIndex, supplementKm) in supplements {
+            merged[dayIndex, default: 0] += supplementKm
+        }
+        return merged
+    }
+
+    private func addDistance(_ km: Double,
+                             from start: Date,
+                             to end: Date,
+                             calendar: Calendar,
+                             into daily: inout [Int: Double]) {
+        guard km > 0 else { return }
+
+        let duration = end.timeIntervalSince(start)
+        guard duration > 0 else {
+            daily[weeklyDistanceWeekdayIndex(for: start, calendar: calendar), default: 0] += km
+            return
+        }
+
+        var segmentStart = start
+        while segmentStart < end {
+            let dayStart = calendar.startOfDay(for: segmentStart)
+            let nextDayStart = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? end
+            let segmentEnd = min(end, nextDayStart)
+            let ratio = segmentEnd.timeIntervalSince(segmentStart) / duration
+            daily[weeklyDistanceWeekdayIndex(for: segmentStart, calendar: calendar), default: 0] += km * ratio
+            segmentStart = segmentEnd
         }
     }
 
