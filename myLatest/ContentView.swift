@@ -303,6 +303,10 @@ struct ContentView: View {
             withAnimation(.spring(duration: 0.5)) {
                 loadState = .loaded(data)
             }
+            // Update scheduled notifications with live train data (avoids redundant fetch)
+            if transportModeRaw == TransportMode.victorian.rawValue {
+                await TrainNotificationManager.shared.scheduleWithTrainInfo(data.trainInfo)
+            }
         } catch is CancellationError {
             withAnimation {
                 loadState = previousState
@@ -2405,6 +2409,31 @@ struct SettingsView: View {
                             }
                         }
                         .font(.footnote)
+                    }
+                }
+
+                // ── Train Notifications (Victorian only) ──────────────
+                if transportModeRaw == TransportMode.victorian.rawValue {
+                    Section {
+                        NavigationLink {
+                            TrainNotificationSettingsView()
+                        } label: {
+                            HStack {
+                                Label("Train Notifications", systemImage: "bell.badge.fill")
+                                Spacer()
+                                if TrainNotificationManager.shared.schedule.isEnabled {
+                                    Text("\(TrainNotificationManager.shared.schedule.times.count) times")
+                                        .foregroundStyle(.secondary)
+                                } else {
+                                    Text("Off")
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    } header: {
+                        Text("Notifications")
+                    } footer: {
+                        Text("Schedule notifications to receive train status updates at specific days and times.")
                     }
                 }
 

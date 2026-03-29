@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import UserNotifications
 
 @main
 struct myLatestApp: App {
@@ -13,6 +14,11 @@ struct myLatestApp: App {
     @State private var stationStore = WeatherStationStore.shared
     @State private var drivingDestinationStore = DrivingDestinationStore.shared
     @State private var favouriteBusStopStore = FavouriteBusStopStore.shared
+    @Environment(\.scenePhase) private var scenePhase
+
+    init() {
+        TrainNotificationManager.registerBackgroundTask()
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -31,6 +37,16 @@ struct myLatestApp: App {
             .environment(stationStore)
             .environment(drivingDestinationStore)
             .environment(favouriteBusStopStore)
+            .task {
+                await TrainNotificationManager.shared.checkAuthorizationStatus()
+                TrainNotificationManager.shared.refreshNotifications()
+            }
+            .onChange(of: scenePhase) { _, newPhase in
+                if newPhase == .active {
+                    // Refresh notification content with latest train data when app comes to foreground
+                    TrainNotificationManager.shared.refreshNotifications()
+                }
+            }
         }
     }
 }
