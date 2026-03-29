@@ -2626,6 +2626,18 @@ struct SettingsView: View {
                 } footer: {
                     Text("The nearest station to your device is chosen automatically. Add custom BOM stations here.")
                 }
+
+                // ── Version ─────────────────────────────────────────────
+                Section {
+                } footer: {
+                    HStack {
+                        Spacer()
+                        Text("MyLatest v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"))")
+                            .font(.footnote)
+                            .foregroundStyle(.tertiary)
+                        Spacer()
+                    }
+                }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
