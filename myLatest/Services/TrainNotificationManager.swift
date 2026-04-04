@@ -203,7 +203,7 @@ final class TrainNotificationManager {
         let cityStation = UserDefaults.standard.string(forKey: "cityStation") ?? "Flinders Street"
         let transportMode = UserDefaults.standard.string(forKey: "transportMode") ?? "victorian"
 
-        guard transportMode == TransportMode.victorian.rawValue, !lineName.isEmpty else { return }
+        guard transportMode == TransportRegion.victorian.rawValue, !lineName.isEmpty else { return }
 
         // Fetch live train data
         let trainInfo: TrainInfo?

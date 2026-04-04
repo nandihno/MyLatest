@@ -2,15 +2,15 @@
 //  BusModels.swift
 //  myLatest
 //
-//  App-level models for displaying SEQ bus departure information.
+//  App-level models for displaying bus departure information.
 //  Combines static GTFS schedule data with GTFS-RT real-time predictions.
 //
 
 import Foundation
 
-// MARK: - Transport Mode
+// MARK: - Transport Region
 
-enum TransportMode: String, CaseIterable {
+enum TransportRegion: String, CaseIterable {
     case victorian   = "victorian"
     case queensland  = "queensland"
 
@@ -22,14 +22,45 @@ enum TransportMode: String, CaseIterable {
     }
 }
 
+// MARK: - Bus Provider
+
+enum BusProvider: String, Codable, CaseIterable {
+    case queenslandTransLink = "queenslandTransLink"
+    case victorianPTV = "victorianPTV"
+
+    var displayName: String {
+        switch self {
+        case .queenslandTransLink:
+            return "TransLink SEQ"
+        case .victorianPTV:
+            return "PTV Victoria"
+        }
+    }
+
+    var region: TransportRegion {
+        switch self {
+        case .queenslandTransLink:
+            return .queensland
+        case .victorianPTV:
+            return .victorian
+        }
+    }
+}
+
+protocol BusDataProviding {
+    var provider: BusProvider { get }
+    func fetchBusInfo(latitude: Double, longitude: Double) async throws -> BusInfo
+}
+
 // MARK: - Bus Info (top-level model for BusCard)
 
 struct BusInfo: Identifiable {
     let id = UUID()
+    let provider: BusProvider
     let nearbyStops: [NearbyBusStop]
     let favouriteStops: [NearbyBusStop]
     let alerts: [BusAlert]
-    let brisbaneTimeAtFetch: String   // e.g. "2:22 PM"
+    let localTimeAtFetch: String      // e.g. "2:22 PM"
     let locationAvailable: Bool
 }
 
@@ -107,14 +138,19 @@ enum BusAlertSeverity: String {
 // MARK: - Mock data
 
 extension BusInfo {
-    static func placeholder() -> BusInfo {
+    static func placeholder(provider: BusProvider = .queenslandTransLink) -> BusInfo {
         let now = Date()
-        let brisbane = TimeZone(identifier: "Australia/Brisbane")!
+        let zoneIdentifier = switch provider {
+        case .queenslandTransLink: "Australia/Brisbane"
+        case .victorianPTV: "Australia/Melbourne"
+        }
+        let localZone = TimeZone(identifier: zoneIdentifier) ?? .current
         let formatter = DateFormatter()
         formatter.dateFormat = "h:mm a"
-        formatter.timeZone = brisbane
+        formatter.timeZone = localZone
 
         return BusInfo(
+            provider: provider,
             nearbyStops: [
                 NearbyBusStop(
                     id: "placeholder-1",
@@ -140,17 +176,18 @@ extension BusInfo {
             ],
             favouriteStops: [],
             alerts: [],
-            brisbaneTimeAtFetch: "--:-- --",
+            localTimeAtFetch: "--:-- --",
             locationAvailable: true
         )
     }
 
-    static func noLocation() -> BusInfo {
+    static func noLocation(provider: BusProvider = .queenslandTransLink) -> BusInfo {
         BusInfo(
+            provider: provider,
             nearbyStops: [],
             favouriteStops: [],
             alerts: [],
-            brisbaneTimeAtFetch: "--:-- --",
+            localTimeAtFetch: "--:-- --",
             locationAvailable: false
         )
     }

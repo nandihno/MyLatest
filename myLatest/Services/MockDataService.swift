@@ -31,7 +31,8 @@ final class MockDataService {
     func fetchDashboard(trainLineName: String,
                         homeStation: String,
                         cityStation: String,
-                        transportMode: TransportMode = .victorian,
+                        transportRegion: TransportRegion = .victorian,
+                        includeBus: Bool = false,
                         drivingProvider: DrivingProvider = .apple,
                         googleMapsApiKey: String = "",
                         includeWeather: Bool = true) async throws -> DashboardData {
@@ -54,10 +55,10 @@ final class MockDataService {
         let train = try await trainTask
         let driving = await drivingTask
 
-        // Bus info — only fetched when Queensland transport mode is active
+        // Bus info — fetched through the region/provider bus abstraction
         let busInfo: BusInfo?
-        if transportMode == .queensland {
-            busInfo = await fetchBusInfoSafely()
+        if includeBus, let provider = busProvider(for: transportRegion) {
+            busInfo = await fetchBusInfoSafely(provider: provider)
         } else {
             busInfo = nil
         }
@@ -121,27 +122,37 @@ final class MockDataService {
 
     // MARK: - Bus (real TransLink GTFS with fallback)
 
-    private func fetchBusInfoSafely() async -> BusInfo {
+    private func fetchBusInfoSafely(provider: any BusDataProviding) async -> BusInfo {
         do {
             let locationManager = LocationManager()
             let location = try await locationManager.currentLocation()
-            return try await BusService.shared.fetchBusInfo(
+            return try await provider.fetchBusInfo(
                 latitude: location.coordinate.latitude,
                 longitude: location.coordinate.longitude
             )
         } catch {
             if error is LocationError {
                 print("⚠️ BusService: location unavailable — \(error.localizedDescription)")
-                return BusInfo.noLocation()
+                return BusInfo.noLocation(provider: provider.provider)
             }
             print("⚠️ BusService failed (\(error.localizedDescription)) — returning empty bus info.")
             return BusInfo(
+                provider: provider.provider,
                 nearbyStops: [],
                 favouriteStops: [],
                 alerts: [],
-                brisbaneTimeAtFetch: "--:-- --",
+                localTimeAtFetch: "--:-- --",
                 locationAvailable: true
             )
+        }
+    }
+
+    private func busProvider(for region: TransportRegion) -> (any BusDataProviding)? {
+        switch region {
+        case .queensland:
+            return BusService.shared
+        case .victorian:
+            return VictorianBusService.shared
         }
     }
 

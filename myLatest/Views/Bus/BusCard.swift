@@ -20,7 +20,7 @@ struct BusCard: View {
                         .font(.transit(18, weight: .bold))
                         .foregroundStyle(palette.accent)
                     Spacer()
-                    Text(busInfo.brisbaneTimeAtFetch)
+                    Text(busInfo.localTimeAtFetch)
                         .font(.transit(11, weight: .bold))
                         .foregroundStyle(palette.textSecondary)
                         .padding(.horizontal, 10)

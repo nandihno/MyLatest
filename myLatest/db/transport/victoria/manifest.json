@@ -1,0 +1,20 @@
+{
+  "dataset": "victoria-bus",
+  "sourceUrl": "https://opendata.transport.vic.gov.au/dataset/3f4e292e-7f8a-4ffe-831f-1953be0fe448/resource/fb152201-859f-4882-9206-b768060b50ad/download/gtfs.zip",
+  "modeFolder": "4",
+  "generatedAt": "2026-04-03T21:18:36.633Z",
+  "sqliteFile": "gtfs_victorian_bus.sqlite3",
+  "sha256": "1e280f5fadb5fa4da1703e212e8af044e520e82729328c5a608c70484b9667b1",
+  "rowCounts": {
+    "stops": 22467,
+    "routes": 732,
+    "trips": 434713,
+    "stop_times": 18042887,
+    "calendar": 12372,
+    "calendar_dates": 219980
+  },
+  "notes": [
+    "Built from the Transport Victoria GTFS outer archive using mode folder 4.",
+    "SQLite schema and index names are aligned with the existing iOS Victorian bus database contract."
+  ]
+}

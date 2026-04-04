@@ -11,7 +11,10 @@ struct SettingsView: View {
     @Binding var trainLineName: String
     @AppStorage("homeStation") private var homeStation: String = ""
     @AppStorage("cityStation") private var cityStation: String = "Flinders Street"
-    @AppStorage("transportMode") private var transportModeRaw: String = TransportMode.victorian.rawValue
+    @AppStorage("transportMode") private var transportRegionRaw: String = TransportRegion.victorian.rawValue
+    @AppStorage("victorianShowTrainCard") private var victorianShowTrainCard = true
+    @AppStorage("victorianShowBusCard") private var victorianShowBusCard = false
+    @AppStorage(VictorianBusService.realtimeAPIKeyDefaultsKey) private var victorianGTFSRealtimeApiKey: String = ""
 
     @Environment(\.dismiss) private var dismiss
     @Environment(WeatherStationStore.self) private var stationStore
@@ -22,9 +25,11 @@ struct SettingsView: View {
     @AppStorage("aiProvider") private var aiProviderRaw: String = AIProvider.appleIntelligence.rawValue
     @AppStorage("userAge")      private var userAge:      String = ""
     @State private var showDeleteGTFSConfirmation = false
+    @State private var showDeleteVictorianGTFSConfirmation = false
     @State private var gtfsRedownloadStatus = ""
     @State private var gtfsDataReady = false
     @State private var gtfsDownloadInProgress = false
+    @State private var victorianBundledDBAvailable = false
 
     private var useGoogleMaps: Binding<Bool> {
         Binding(
@@ -40,28 +45,47 @@ struct SettingsView: View {
     }
     @AppStorage("userExtraInformation") private var userExtraInformation: String = ""
 
+    private var transportRegion: TransportRegion {
+        TransportRegion(rawValue: transportRegionRaw) ?? .victorian
+    }
+
     var body: some View {
         NavigationStack {
             Form {
                 // ── Transport Mode ─────────────────────────────────────
                 Section {
-                    Picker("Region", selection: $transportModeRaw) {
-                        Text("Victorian Transport").tag(TransportMode.victorian.rawValue)
-                        Text("Queensland Transport").tag(TransportMode.queensland.rawValue)
+                    Picker("Region", selection: $transportRegionRaw) {
+                        Text("Victorian Transport").tag(TransportRegion.victorian.rawValue)
+                        Text("Queensland Transport").tag(TransportRegion.queensland.rawValue)
                     }
                     .pickerStyle(.segmented)
                 } header: {
                     Text("Transport Region")
                 } footer: {
-                    if transportModeRaw == TransportMode.victorian.rawValue {
-                        Text("Showing Metro Trains Melbourne in the Commuting section.")
+                    if transportRegion == .victorian {
+                        Text("Choose which Victorian commuting cards appear on the dashboard.")
                     } else {
                         Text("Showing SEQ bus departures near your location in the Commuting section.")
                     }
                 }
 
+                if transportRegion == .victorian {
+                    Section {
+                        Toggle("Show Train Card", isOn: $victorianShowTrainCard)
+                        Toggle("Show Bus Card", isOn: $victorianShowBusCard)
+                    } header: {
+                        Text("Victorian Commuting Cards")
+                    } footer: {
+                        if victorianShowBusCard {
+                            Text("The Victorian bus card now uses the local GTFS database for scheduled departures and can overlay live PTV GTFS-RT predictions when a realtime API key is configured below.")
+                        } else {
+                            Text("Enable the bus card here when you want Melbourne bus support to appear on the dashboard.")
+                        }
+                    }
+                }
+
                 // ── Train (Victorian only) ─────────────────────────────
-                if transportModeRaw == TransportMode.victorian.rawValue {
+                if transportRegion == .victorian && victorianShowTrainCard {
                     Section {
                         NavigationLink {
                             TrainLinePickerView(selectedLineName: $trainLineName)
@@ -109,7 +133,7 @@ struct SettingsView: View {
                 }
 
                 // ── Train Notifications (Victorian only) ──────────────
-                if transportModeRaw == TransportMode.victorian.rawValue {
+                if transportRegion == .victorian && victorianShowTrainCard {
                     Section {
                         NavigationLink {
                             TrainNotificationSettingsView()
@@ -134,7 +158,7 @@ struct SettingsView: View {
                 }
 
                 // ── Queensland Bus Info ────────────────────────────────
-                if transportModeRaw == TransportMode.queensland.rawValue {
+                if transportRegion == .queensland {
                     Section {
                         if gtfsDataReady {
                             NavigationLink {
@@ -143,7 +167,7 @@ struct SettingsView: View {
                                 HStack {
                                     Text("Favourite Stops")
                                     Spacer()
-                                    Text("\(FavouriteBusStopStore.shared.all.count)")
+                                    Text("\(FavouriteBusStopStore.shared.count(for: .queenslandTransLink))")
                                         .foregroundStyle(.secondary)
                                 }
                             }
@@ -227,6 +251,163 @@ struct SettingsView: View {
                             }
                         } header: {
                             Text("Bus Data Management")
+                        }
+                    }
+                }
+
+                if transportRegion == .victorian && victorianShowBusCard {
+                    Section {
+                        LabeledContent("Realtime API Key") {
+                            TextField("Ocp-Apim key", text: $victorianGTFSRealtimeApiKey)
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.never)
+                                .multilineTextAlignment(.trailing)
+                        }
+
+                        if victorianGTFSRealtimeApiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            Label("Scheduled departures still work without this key. Add it to unlock live late/early predictions.", systemImage: "clock.badge.exclamationmark")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        if gtfsDataReady {
+                            NavigationLink {
+                                FavouriteBusStopsView(provider: .victorianPTV)
+                            } label: {
+                                HStack {
+                                    Text("Favourite Stops")
+                                    Spacer()
+                                    Text("\(FavouriteBusStopStore.shared.count(for: .victorianPTV))")
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            Label("Nearby Melbourne bus stops are available once the PTV GTFS dataset has been downloaded.", systemImage: "location.fill")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        } else if gtfsDownloadInProgress {
+                            HStack(spacing: 12) {
+                                ProgressView()
+                                VStack(alignment: .leading) {
+                                    Text(GTFSDownloadProgress.shared.stage.isEmpty ? "Downloading Victorian bus data…" : GTFSDownloadProgress.shared.stage)
+                                        .font(.subheadline)
+                                    if !GTFSDownloadProgress.shared.detail.isEmpty {
+                                        Text(GTFSDownloadProgress.shared.detail)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                        } else {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Label("Download the Victorian GTFS dataset before browsing and saving Melbourne bus stops.", systemImage: "arrow.down.circle.fill")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+
+                                Button {
+                                    gtfsRedownloadStatus = ""
+                                    gtfsDownloadInProgress = true
+                                    Task {
+                                        do {
+                                            try await VictorianBusGTFSDatabase.shared.ensureReady()
+                                            gtfsDataReady = true
+                                        } catch {
+                                            print("Victorian GTFS download failed:", error.localizedDescription)
+                                            gtfsRedownloadStatus = "Download failed: \(error.localizedDescription)"
+                                        }
+                                        gtfsDownloadInProgress = false
+                                    }
+                                } label: {
+                                    Label("Download Victorian Bus Data (~213 MB)", systemImage: "arrow.down.circle.fill")
+                                        .frame(maxWidth: .infinity)
+                                }
+                                .buttonStyle(.borderedProminent)
+
+                                if !gtfsRedownloadStatus.isEmpty {
+                                    Text(gtfsRedownloadStatus)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                Button(role: .destructive) {
+                                    showDeleteVictorianGTFSConfirmation = true
+                                } label: {
+                                    Label(victorianBundledDBAvailable ? "Reset Installed Victorian Bus Data" : "Reset Victorian Bus Setup", systemImage: "trash")
+                                        .frame(maxWidth: .infinity)
+                                }
+                                .buttonStyle(.bordered)
+                                .confirmationDialog(
+                                    "Reset Victorian Bus Setup?",
+                                    isPresented: $showDeleteVictorianGTFSConfirmation,
+                                    titleVisibility: .visible
+                                ) {
+                                    Button("Reset Setup", role: .destructive) {
+                                        Task {
+                                            do {
+                                                try await VictorianBusGTFSDatabase.shared.resetDatabase()
+                                                gtfsDataReady = false
+                                                gtfsDownloadInProgress = false
+                                                gtfsRedownloadStatus = victorianBundledDBAvailable
+                                                    ? "Victorian bus data was cleared. The bundled database will be restored automatically on next use."
+                                                    : "Victorian bus data was cleared. You can start the download again."
+                                            } catch {
+                                                gtfsRedownloadStatus = "Reset failed: \(error.localizedDescription)"
+                                            }
+                                        }
+                                    }
+                                } message: {
+                                    Text(victorianBundledDBAvailable
+                                         ? "This clears the installed Victorian bus database in the app cache. The bundled database shipped with the app will be restored automatically on next use."
+                                         : "This clears any downloaded Victorian GTFS ZIP, partial extraction files, and the local bus database so you can start the setup again from scratch.")
+                                }
+                            }
+                        }
+                    } header: {
+                        Text("Victorian Bus")
+                    } footer: {
+                        Text(victorianBundledDBAvailable
+                             ? "Static stop and timetable data is bundled with the app and installed locally on first use. Live departure predictions come from the Transport Victoria GTFS-RT metro-bus trip updates feed when a realtime key is configured."
+                             : "Static stop and timetable data comes from the Transport Victoria GTFS Schedule download. Live departure predictions come from the Transport Victoria GTFS-RT metro-bus trip updates feed when a realtime key is configured.")
+                    }
+
+                    if gtfsDataReady {
+                        Section {
+                            Button(role: .destructive) {
+                                showDeleteVictorianGTFSConfirmation = true
+                            } label: {
+                                Label(victorianBundledDBAvailable ? "Reinstall Bundled Victorian Bus Data" : "Delete & Re-download Victorian Bus Data", systemImage: "arrow.triangle.2.circlepath")
+                            }
+                            .confirmationDialog(
+                                "Delete Victorian Bus Data?",
+                                isPresented: $showDeleteVictorianGTFSConfirmation,
+                                titleVisibility: .visible
+                            ) {
+                                Button("Delete & Re-download", role: .destructive) {
+                                    Task {
+                                        do {
+                                            try await VictorianBusGTFSDatabase.shared.resetDatabase()
+                                            gtfsDataReady = false
+                                            gtfsDownloadInProgress = false
+                                            gtfsRedownloadStatus = victorianBundledDBAvailable
+                                                ? "Victorian bus data was cleared. The bundled database will be restored automatically on next use."
+                                                : "Victorian bus data was cleared. Start the download again when ready."
+                                        } catch {
+                                            gtfsRedownloadStatus = "Error: \(error.localizedDescription)"
+                                        }
+                                    }
+                                }
+                            } message: {
+                                Text(victorianBundledDBAvailable
+                                     ? "This removes the installed Victorian bus timetable database from cache. The bundled database will be restored automatically the next time the app needs it."
+                                     : "This removes the cached Victorian bus timetable database. You will need to download it again before managing favourite Melbourne bus stops.")
+                            }
+
+                            if !gtfsRedownloadStatus.isEmpty {
+                                Text(gtfsRedownloadStatus)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } header: {
+                            Text("Victorian Bus Data Management")
                         }
                     }
                 }
@@ -343,8 +524,34 @@ struct SettingsView: View {
                 }
             }
             .task {
-                gtfsDataReady = await GTFSDatabase.shared.isDatabaseReady()
+                await refreshGTFSState()
             }
+            .onChange(of: transportRegionRaw) { _, _ in
+                Task { await refreshGTFSState() }
+            }
+            .onChange(of: victorianShowBusCard) { _, _ in
+                Task { await refreshGTFSState() }
+            }
+        }
+    }
+
+    @MainActor
+    private func refreshGTFSState() async {
+        guard transportRegion == .queensland || (transportRegion == .victorian && victorianShowBusCard) else {
+            gtfsDataReady = false
+            gtfsDownloadInProgress = false
+            gtfsRedownloadStatus = ""
+            victorianBundledDBAvailable = false
+            return
+        }
+
+        switch transportRegion {
+        case .queensland:
+            victorianBundledDBAvailable = false
+            gtfsDataReady = await GTFSDatabase.shared.isDatabaseReady()
+        case .victorian:
+            victorianBundledDBAvailable = await VictorianBusGTFSDatabase.shared.hasBundledDatabaseAsset()
+            gtfsDataReady = await VictorianBusGTFSDatabase.shared.isDatabaseReady()
         }
     }
 }

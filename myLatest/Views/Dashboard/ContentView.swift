@@ -94,7 +94,9 @@ struct ContentView: View {
     @AppStorage("cityStation")   private var cityStation:   String = "Flinders Street"
     @AppStorage("googleMapsApiKey") private var googleMapsApiKey: String = ""
     @AppStorage("drivingProvider") private var drivingProviderRaw: String = DrivingProvider.apple.rawValue
-    @AppStorage("transportMode") private var transportModeRaw: String = TransportMode.victorian.rawValue
+    @AppStorage("transportMode") private var transportRegionRaw: String = TransportRegion.victorian.rawValue
+    @AppStorage("victorianShowTrainCard") private var victorianShowTrainCard = true
+    @AppStorage("victorianShowBusCard") private var victorianShowBusCard = false
 
     @Environment(DrivingDestinationStore.self) private var drivingDestinationStore
     @Environment(\.colorScheme) private var colorScheme
@@ -105,8 +107,26 @@ struct ContentView: View {
         DrivingProvider(rawValue: drivingProviderRaw) ?? .apple
     }
 
-    private var transportMode: TransportMode {
-        TransportMode(rawValue: transportModeRaw) ?? .victorian
+    private var transportRegion: TransportRegion {
+        TransportRegion(rawValue: transportRegionRaw) ?? .victorian
+    }
+
+    private var shouldShowTrainCard: Bool {
+        switch transportRegion {
+        case .victorian:
+            return victorianShowTrainCard
+        case .queensland:
+            return false
+        }
+    }
+
+    private var shouldShowBusCard: Bool {
+        switch transportRegion {
+        case .victorian:
+            return victorianShowBusCard
+        case .queensland:
+            return true
+        }
     }
 
     private var displayData: DashboardData {
@@ -240,10 +260,19 @@ struct ContentView: View {
 
     private var cardsStack: some View {
         VStack(spacing: 20) {
-            if transportMode == .victorian {
+            if shouldShowTrainCard {
                 TrainCard(train: displayData.trainInfo)
-            } else {
-                BusCard(busInfo: displayData.busInfo ?? BusInfo.placeholder())
+            }
+
+            if shouldShowBusCard {
+                let placeholderProvider: BusProvider = transportRegion == .queensland
+                    ? .queenslandTransLink
+                    : .victorianPTV
+                BusCard(busInfo: displayData.busInfo ?? BusInfo.placeholder(provider: placeholderProvider))
+            }
+
+            if !shouldShowTrainCard && !shouldShowBusCard {
+                CommuteConfigurationCard()
             }
             DrivingTimesCard(estimates: displayData.drivingEstimates, provider: drivingProvider)
             CalendarCard(events: displayData.upcomingEvents)
@@ -277,7 +306,8 @@ struct ContentView: View {
                 trainLineName: trainLineName,
                 homeStation:   homeStation,
                 cityStation:   cityStation,
-                transportMode: transportMode,
+                transportRegion: transportRegion,
+                includeBus: shouldShowBusCard,
                 drivingProvider: drivingProvider,
                 googleMapsApiKey: googleMapsApiKey,
                 includeWeather: false
@@ -286,7 +316,7 @@ struct ContentView: View {
                 loadState = .loaded(data)
             }
             // Update scheduled notifications with live train data (avoids redundant fetch)
-            if transportModeRaw == TransportMode.victorian.rawValue {
+            if transportRegionRaw == TransportRegion.victorian.rawValue {
                 await TrainNotificationManager.shared.scheduleWithTrainInfo(data.trainInfo)
             }
         } catch is CancellationError {
@@ -297,6 +327,28 @@ struct ContentView: View {
             print("⚠️ Dashboard fetch failed unexpectedly (\(error.localizedDescription))")
             withAnimation {
                 loadState = previousState
+            }
+        }
+    }
+}
+
+private struct CommuteConfigurationCard: View {
+    @Environment(\.themePalette) private var palette
+
+    var body: some View {
+        CardContainer {
+            VStack(alignment: .leading, spacing: 10) {
+                Label("Commuting", systemImage: "car.2.fill")
+                    .font(.transit(18, weight: .bold))
+                    .foregroundStyle(palette.accent)
+
+                Text("No commute cards are enabled for the current region.")
+                    .font(.transit(14, weight: .medium))
+                    .foregroundStyle(palette.textPrimary)
+
+                Text("Open Settings to choose which commuting cards should appear on this dashboard.")
+                    .font(.transit(12, weight: .medium))
+                    .foregroundStyle(palette.textSecondary)
             }
         }
     }

@@ -13,9 +13,11 @@
 import Foundation
 import CoreLocation
 
-final class BusService {
+final class BusService: BusDataProviding {
     static let shared = BusService()
     private init() {}
+
+    let provider: BusProvider = .queenslandTransLink
 
     // MARK: - GTFS-RT Endpoints (Bus-specific for smaller payloads)
 
@@ -40,7 +42,7 @@ final class BusService {
         let nearbyStopIds = nearbyRaw.map { $0.stop.stopId }
 
         // 3. Favourite stops
-        let favourites = await MainActor.run { FavouriteBusStopStore.shared.all }
+        let favourites = await MainActor.run { FavouriteBusStopStore.shared.favourites(for: provider) }
         let favStopIds = favourites.map(\.stopId)
 
         // Combine all stop IDs (deduplicate)
@@ -110,10 +112,11 @@ final class BusService {
         let filteredAlerts = filterAlerts(rawAlerts, stopIds: relevantStopIds, routeIds: relevantRouteIds)
 
         return BusInfo(
+            provider: provider,
             nearbyStops: nearbyStops,
             favouriteStops: favouriteStops,
             alerts: filteredAlerts,
-            brisbaneTimeAtFetch: currentBrisbaneTimeString(),
+            localTimeAtFetch: currentBrisbaneTimeString(),
             locationAvailable: true
         )
     }

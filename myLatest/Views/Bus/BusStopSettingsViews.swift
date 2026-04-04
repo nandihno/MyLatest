@@ -15,16 +15,22 @@ import CoreLocation
 struct FavouriteBusStopsView: View {
     @Environment(FavouriteBusStopStore.self) private var store
 
+    let provider: BusProvider
+
+    init(provider: BusProvider = .queenslandTransLink) {
+        self.provider = provider
+    }
+
     var body: some View {
         List {
-            if store.all.isEmpty {
+            if store.favourites(for: provider).isEmpty {
                 ContentUnavailableView {
                     Label("No Favourite Stops", systemImage: "star.slash")
                 } description: {
                     Text("Tap the + button to browse the map and add bus stops.")
                 }
             } else {
-                ForEach(store.all) { stop in
+                ForEach(store.favourites(for: provider)) { stop in
                     VStack(alignment: .leading, spacing: 2) {
                         Text(stop.stopName)
                             .font(.body)
@@ -36,7 +42,7 @@ struct FavouriteBusStopsView: View {
                     }
                 }
                 .onDelete { offsets in
-                    store.delete(offsets: offsets)
+                    store.delete(offsets: offsets, provider: provider)
                 }
             }
         }
@@ -45,7 +51,7 @@ struct FavouriteBusStopsView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink {
-                    BusStopMapView()
+                    BusStopMapView(provider: provider)
                 } label: {
                     Image(systemName: "plus")
                 }
@@ -78,6 +84,8 @@ struct BusStopMapView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(FavouriteBusStopStore.self) private var store
 
+    let provider: BusProvider
+
     @State private var cameraPosition: MapCameraPosition = .userLocation(fallback: .automatic)
     @State private var visibleStops: [BusStopAnnotation] = []
     @State private var selectedStop: BusStopAnnotation?
@@ -100,10 +108,10 @@ struct BusStopMapView: View {
                     ForEach(visibleStops) { stop in
                         Marker(
                             stop.stopName,
-                            systemImage: store.contains(stopId: stop.stopId) ? "star.fill" : "bus.fill",
+                            systemImage: store.contains(stopId: stop.stopId, provider: provider) ? "star.fill" : "bus.fill",
                             coordinate: stop.coordinate
                         )
-                        .tint(store.contains(stopId: stop.stopId) ? .yellow : .blue)
+                        .tint(store.contains(stopId: stop.stopId, provider: provider) ? .yellow : .blue)
                         .tag(stop)
                     }
                 }
@@ -142,7 +150,7 @@ struct BusStopMapView: View {
             selectedStop = nil
         } content: {
             if let stop = selectedStop {
-                BusStopDetailSheet(stop: stop, store: store) {
+                BusStopDetailSheet(stop: stop, provider: provider, store: store) {
                     showStopDetail = false
                 }
                 .presentationDetents([.fraction(0.25)])
@@ -160,11 +168,21 @@ struct BusStopMapView: View {
             let maxLon = region.center.longitude + region.span.longitudeDelta / 2
 
             do {
-                let stops = try await GTFSDatabase.shared.stopsInRegion(
-                    minLat: minLat, maxLat: maxLat,
-                    minLon: minLon, maxLon: maxLon,
-                    limit: 150
-                )
+                let stops: [GTFSStop]
+                switch provider {
+                case .queenslandTransLink:
+                    stops = try await GTFSDatabase.shared.stopsInRegion(
+                        minLat: minLat, maxLat: maxLat,
+                        minLon: minLon, maxLon: maxLon,
+                        limit: 150
+                    )
+                case .victorianPTV:
+                    stops = try await VictorianBusGTFSDatabase.shared.stopsInRegion(
+                        minLat: minLat, maxLat: maxLat,
+                        minLon: minLon, maxLon: maxLon,
+                        limit: 150
+                    )
+                }
                 guard !Task.isCancelled else { return }
                 visibleStops = stops.map { stop in
                     BusStopAnnotation(
@@ -198,6 +216,7 @@ private struct ZoomInBanner: View {
 
 private struct BusStopDetailSheet: View {
     let stop: BusStopAnnotation
+    let provider: BusProvider
     let store: FavouriteBusStopStore
     let onDismiss: () -> Void
 
@@ -214,9 +233,9 @@ private struct BusStopDetailSheet: View {
                 }
             }
 
-            if store.contains(stopId: stop.stopId) {
+            if store.contains(stopId: stop.stopId, provider: provider) {
                 Button(role: .destructive) {
-                    store.remove(stopId: stop.stopId)
+                    store.remove(stopId: stop.stopId, provider: provider)
                     onDismiss()
                 } label: {
                     Label("Remove from Favourites", systemImage: "star.slash.fill")
@@ -227,6 +246,7 @@ private struct BusStopDetailSheet: View {
             } else {
                 Button {
                     store.add(FavouriteBusStop(
+                        provider: provider,
                         stopId: stop.stopId,
                         stopName: stop.stopName,
                         stopCode: stop.stopCode,
