@@ -10,11 +10,7 @@ import SwiftUI
 struct BusCard: View {
     let busInfo: BusInfo
     @Environment(\.themePalette) private var palette
-    @State private var selectedTripRequest: VictorianTripRequest?
-
-    private var showsVictorianTripDetails: Bool {
-        busInfo.provider == .victorianPTV
-    }
+    @State private var selectedTripRequest: BusTripRequest?
 
     var body: some View {
         CardContainer {
@@ -33,7 +29,7 @@ struct BusCard: View {
                         .background(palette.surfaceRaised, in: Capsule())
                 }
 
-                if showsVictorianTripDetails, busInfo.locationAvailable {
+                if busInfo.locationAvailable {
                     Label("Tap a departure to see where that trip continues.", systemImage: "list.bullet.rectangle.portrait")
                         .font(.caption)
                         .foregroundStyle(palette.textSecondary)
@@ -64,9 +60,13 @@ struct BusCard: View {
                         ForEach(busInfo.nearbyStops) { stop in
                             BusStopSection(
                                 stop: stop,
-                                isTripDetailEnabled: showsVictorianTripDetails
+                                isTripDetailEnabled: true
                             ) { departure in
-                                selectedTripRequest = VictorianTripRequest(stopId: stop.id, departure: departure)
+                                selectedTripRequest = BusTripRequest(
+                                    provider: busInfo.provider,
+                                    stopId: stop.id,
+                                    departure: departure
+                                )
                             }
                         }
                     }
@@ -83,9 +83,13 @@ struct BusCard: View {
                         ForEach(busInfo.favouriteStops) { stop in
                             BusStopSection(
                                 stop: stop,
-                                isTripDetailEnabled: showsVictorianTripDetails
+                                isTripDetailEnabled: true
                             ) { departure in
-                                selectedTripRequest = VictorianTripRequest(stopId: stop.id, departure: departure)
+                                selectedTripRequest = BusTripRequest(
+                                    provider: busInfo.provider,
+                                    stopId: stop.id,
+                                    departure: departure
+                                )
                             }
                         }
                     }
@@ -93,7 +97,7 @@ struct BusCard: View {
             }
         }
         .sheet(item: $selectedTripRequest) { request in
-            VictorianTripDetailSheet(request: request)
+            BusTripDetailSheet(request: request)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
@@ -315,15 +319,16 @@ struct BusDepartureRow: View {
     }
 }
 
-private struct VictorianTripRequest: Identifiable {
+private struct BusTripRequest: Identifiable {
+    let provider: BusProvider
     let stopId: String
     let departure: BusDeparture
 
-    var id: String { "\(departure.tripId):\(stopId):\(departure.stopSequence)" }
+    var id: String { "\(provider.rawValue):\(departure.tripId):\(stopId):\(departure.stopSequence)" }
 }
 
-private struct VictorianTripDetailSheet: View {
-    let request: VictorianTripRequest
+private struct BusTripDetailSheet: View {
+    let request: BusTripRequest
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.themePalette) private var palette
@@ -480,7 +485,7 @@ private struct VictorianTripDetailSheet: View {
         tripDetail = nil
 
         do {
-            tripDetail = try await VictorianBusService.shared.fetchTripDetail(
+            tripDetail = try await providerService.fetchTripDetail(
                 for: request.departure,
                 stopId: request.stopId
             )
@@ -489,6 +494,15 @@ private struct VictorianTripDetailSheet: View {
         }
 
         isLoading = false
+    }
+
+    private var providerService: any BusDataProviding {
+        switch request.provider {
+        case .queenslandTransLink:
+            return BusService.shared
+        case .victorianPTV:
+            return VictorianBusService.shared
+        }
     }
 }
 

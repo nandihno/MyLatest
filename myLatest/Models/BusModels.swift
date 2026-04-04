@@ -50,6 +50,7 @@ enum BusProvider: String, Codable, CaseIterable {
 protocol BusDataProviding {
     var provider: BusProvider { get }
     func fetchBusInfo(latitude: Double, longitude: Double) async throws -> BusInfo
+    func fetchTripDetail(for departure: BusDeparture, stopId: String) async throws -> BusTripDetail
 }
 
 // MARK: - Bus Info (top-level model for BusCard)
