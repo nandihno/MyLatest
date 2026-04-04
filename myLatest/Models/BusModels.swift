@@ -104,6 +104,7 @@ struct BusTripDetail: Identifiable {
     let remainingStopCount: Int
     let terminalStopName: String
     let terminalScheduledTime: String?
+    let terminalPredictedTime: String?
     let stopsFromSelected: [BusTripStopDetail]
 
     init(
@@ -117,6 +118,7 @@ struct BusTripDetail: Identifiable {
         remainingStopCount: Int,
         terminalStopName: String,
         terminalScheduledTime: String?,
+        terminalPredictedTime: String?,
         stopsFromSelected: [BusTripStopDetail]
     ) {
         self.id = tripId
@@ -130,6 +132,7 @@ struct BusTripDetail: Identifiable {
         self.remainingStopCount = remainingStopCount
         self.terminalStopName = terminalStopName
         self.terminalScheduledTime = terminalScheduledTime
+        self.terminalPredictedTime = terminalPredictedTime
         self.stopsFromSelected = stopsFromSelected
     }
 }
@@ -139,6 +142,9 @@ struct BusTripStopDetail: Identifiable {
     let stopName: String
     let stopCode: String?
     let scheduledTime: String?
+    let predictedTime: String?
+    let delaySeconds: Int?
+    let status: BusDepartureStatus?
     let stopSequence: Int
     let isSelectedStop: Bool
 

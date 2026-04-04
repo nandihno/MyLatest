@@ -431,6 +431,14 @@ private struct BusTripDetailSheet: View {
                             .padding(.vertical, 4)
                             .background(palette.surfaceRaised, in: Capsule())
                     }
+                    if let terminalPredictedTime = tripDetail.terminalPredictedTime {
+                        Text("Pred \(terminalPredictedTime)")
+                            .font(.caption.bold())
+                            .foregroundStyle(AppTheme.info)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(palette.surfaceRaised, in: Capsule())
+                    }
                 }
             }
         }
@@ -516,7 +524,7 @@ private struct VictorianTripStopRow: View {
         HStack(alignment: .top, spacing: 12) {
             VStack(spacing: 0) {
                 Circle()
-                    .fill(stop.isSelectedStop ? palette.accent : palette.textTertiary.opacity(0.75))
+                    .fill(markerColor)
                     .frame(width: stop.isSelectedStop ? 12 : 9, height: stop.isSelectedStop ? 12 : 9)
                     .padding(.top, 4)
 
@@ -558,10 +566,63 @@ private struct VictorianTripStopRow: View {
                             .font(.caption.bold())
                             .foregroundStyle(stop.isSelectedStop ? palette.accent : palette.textSecondary)
                     }
+
+                    if let predictedTime = stop.predictedTime {
+                        Text("Pred \(predictedTime)")
+                            .font(.caption.bold())
+                            .foregroundStyle(statusColor)
+                    }
+
+                    if let status = stop.status {
+                        Text(status.rawValue)
+                            .font(.caption2.bold())
+                            .foregroundStyle(statusColor)
+                    }
+
+                    if let delaySeconds = stop.delaySeconds,
+                       let status = stop.status,
+                       status != .noData,
+                       status != .skipped,
+                       delaySeconds != 0 {
+                        let delayText = delaySeconds > 0 ? "+\(delaySeconds)s" : "\(delaySeconds)s"
+                        Text(delayText)
+                            .font(.caption2)
+                            .foregroundStyle(statusColor)
+                    }
                 }
             }
 
             Spacer(minLength: 0)
+        }
+    }
+
+    private var markerColor: Color {
+        if stop.isSelectedStop {
+            return palette.accent
+        }
+        if let status = stop.status {
+            return color(for: status)
+        }
+        return palette.textTertiary.opacity(0.75)
+    }
+
+    private var statusColor: Color {
+        guard let status = stop.status else { return palette.textSecondary }
+        return color(for: status)
+    }
+
+    private func color(for status: BusDepartureStatus) -> Color {
+        switch status {
+        case .onTime:
+            return AppTheme.success
+        case .early:
+            return AppTheme.info
+        case .late:
+            return AppTheme.warning
+        case .noData:
+            return palette.textSecondary
+        case .skipped:
+            return AppTheme.danger
         }
     }
 }

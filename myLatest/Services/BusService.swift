@@ -165,6 +165,9 @@ final class BusService: BusDataProviding {
                 stopName: stop.stopName,
                 stopCode: stop.stopCode,
                 scheduledTime: scheduledSeconds.map(secondsToTimeString),
+                predictedTime: nil,
+                delaySeconds: nil,
+                status: nil,
                 stopSequence: stop.stopSequence,
                 isSelectedStop: stop.stopSequence == selectedStop.stopSequence && stop.stopId == selectedStop.stopId
             )
@@ -185,6 +188,7 @@ final class BusService: BusDataProviding {
             remainingStopCount: max(0, trailingStops.count - 1),
             terminalStopName: terminalStop.stopName,
             terminalScheduledTime: terminalStop.scheduledTime,
+            terminalPredictedTime: nil,
             stopsFromSelected: trailingStops
         )
     }

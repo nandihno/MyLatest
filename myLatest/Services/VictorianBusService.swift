@@ -111,7 +111,9 @@ final class VictorianBusService: BusDataProviding {
     ) async throws -> BusTripDetail {
         try await VictorianBusGTFSDatabase.shared.ensureReady()
 
+        async let tripUpdatesTask = fetchTripUpdates()
         let pattern = try await VictorianBusGTFSDatabase.shared.tripPattern(tripId: departure.tripId)
+        let tripUpdates = await tripUpdatesTask
         guard !pattern.isEmpty else {
             throw TripDetailError.tripPatternUnavailable
         }
@@ -125,18 +127,19 @@ final class VictorianBusService: BusDataProviding {
         }
 
         let selectedStop = pattern[selectedIndex]
+        let tripUpdate = tripUpdates[departure.tripId]
         let trailingStops = pattern[selectedIndex...].map { stop in
-            let scheduledSeconds: Int? = {
-                if stop.departureSeconds > 0 { return stop.departureSeconds }
-                if stop.arrivalSeconds > 0 { return stop.arrivalSeconds }
-                return nil
-            }()
+            let scheduledSeconds = scheduledSeconds(for: stop)
+            let realtime = realtimeStopDetail(for: stop, tripUpdate: tripUpdate)
 
             return BusTripStopDetail(
                 stopId: stop.stopId,
                 stopName: stop.stopName,
                 stopCode: stop.stopCode,
                 scheduledTime: scheduledSeconds.map(secondsToTimeString),
+                predictedTime: realtime.predictedTime,
+                delaySeconds: realtime.delaySeconds,
+                status: realtime.status,
                 stopSequence: stop.stopSequence,
                 isSelectedStop: stop.stopSequence == selectedStop.stopSequence && stop.stopId == selectedStop.stopId
             )
@@ -157,6 +160,7 @@ final class VictorianBusService: BusDataProviding {
             remainingStopCount: max(0, trailingStops.count - 1),
             terminalStopName: terminalStop.stopName,
             terminalScheduledTime: terminalStop.scheduledTime,
+            terminalPredictedTime: terminalStop.predictedTime,
             stopsFromSelected: trailingStops
         )
     }
@@ -325,6 +329,113 @@ final class VictorianBusService: BusDataProviding {
         return formatter.string(from: Date())
     }
 
+    private func scheduledSeconds(for stop: VictorianBusGTFSDatabase.TripPatternStop) -> Int? {
+        if stop.departureSeconds > 0 { return stop.departureSeconds }
+        if stop.arrivalSeconds > 0 { return stop.arrivalSeconds }
+        return nil
+    }
+
+    private func realtimeStopDetail(
+        for stop: VictorianBusGTFSDatabase.TripPatternStop,
+        tripUpdate: GTFSRTTripUpdate?
+    ) -> TripPatternRealtimeDetail {
+        guard let tripUpdate else { return TripPatternRealtimeDetail() }
+
+        let stopTimeUpdate = tripUpdate.stopTimeUpdates.first { update in
+            (!update.stopId.isEmpty && update.stopId == stop.stopId)
+                || (update.stopSequence > 0 && Int(update.stopSequence) == stop.stopSequence)
+        }
+
+        if let stopTimeUpdate {
+            switch stopTimeUpdate.scheduleRelationship {
+            case .skipped:
+                return TripPatternRealtimeDetail(
+                    predictedTime: nil,
+                    delaySeconds: nil,
+                    status: .skipped
+                )
+            case .noData:
+                if let tripDelay = tripUpdate.delay {
+                    let delay = Int(tripDelay)
+                    guard delay != 0 else { return TripPatternRealtimeDetail() }
+                    return TripPatternRealtimeDetail(
+                        predictedTime: predictedTime(for: stop, eventTime: nil, delaySeconds: delay),
+                        delaySeconds: delay,
+                        status: statusForDelay(delay)
+                    )
+                }
+                return TripPatternRealtimeDetail()
+            default:
+                if let departureEvent = stopTimeUpdate.departure {
+                    let delay = Int(departureEvent.delay)
+                    return TripPatternRealtimeDetail(
+                        predictedTime: predictedTime(
+                            for: stop,
+                            eventTime: departureEvent.time > 0 ? Int(departureEvent.time) : nil,
+                            delaySeconds: delay
+                        ),
+                        delaySeconds: delay,
+                        status: statusForDelay(delay)
+                    )
+                }
+
+                if let arrivalEvent = stopTimeUpdate.arrival {
+                    let delay = Int(arrivalEvent.delay)
+                    return TripPatternRealtimeDetail(
+                        predictedTime: predictedTime(
+                            for: stop,
+                            eventTime: arrivalEvent.time > 0 ? Int(arrivalEvent.time) : nil,
+                            delaySeconds: delay
+                        ),
+                        delaySeconds: delay,
+                        status: statusForDelay(delay)
+                    )
+                }
+
+                if let tripDelay = tripUpdate.delay {
+                    let delay = Int(tripDelay)
+                    guard delay != 0 else { return TripPatternRealtimeDetail() }
+                    return TripPatternRealtimeDetail(
+                        predictedTime: predictedTime(for: stop, eventTime: nil, delaySeconds: delay),
+                        delaySeconds: delay,
+                        status: statusForDelay(delay)
+                    )
+                }
+
+                return TripPatternRealtimeDetail()
+            }
+        }
+
+        if let tripDelay = tripUpdate.delay {
+            let delay = Int(tripDelay)
+            guard delay != 0 else { return TripPatternRealtimeDetail() }
+            return TripPatternRealtimeDetail(
+                predictedTime: predictedTime(for: stop, eventTime: nil, delaySeconds: delay),
+                delaySeconds: delay,
+                status: statusForDelay(delay)
+            )
+        }
+
+        return TripPatternRealtimeDetail()
+    }
+
+    private func predictedTime(
+        for stop: VictorianBusGTFSDatabase.TripPatternStop,
+        eventTime: Int?,
+        delaySeconds: Int
+    ) -> String? {
+        if let eventTime {
+            let predictedDate = Date(timeIntervalSince1970: TimeInterval(eventTime))
+            let formatter = DateFormatter()
+            formatter.dateFormat = "h:mm a"
+            formatter.timeZone = melbourneTimeZone
+            return formatter.string(from: predictedDate)
+        }
+
+        guard let scheduledSeconds = scheduledSeconds(for: stop) else { return nil }
+        return secondsToTimeString(scheduledSeconds + delaySeconds)
+    }
+
     private func secondsToTimeString(_ totalSeconds: Int) -> String {
         let safeSeconds = max(0, totalSeconds)
         let hours = (safeSeconds / 3600) % 24
@@ -341,4 +452,10 @@ final class VictorianBusService: BusDataProviding {
         }
         return "\(trimmed.prefix(4))…\(trimmed.suffix(4))"
     }
+}
+
+private struct TripPatternRealtimeDetail {
+    var predictedTime: String? = nil
+    var delaySeconds: Int? = nil
+    var status: BusDepartureStatus? = nil
 }
