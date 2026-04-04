@@ -10,6 +10,11 @@ import SwiftUI
 struct BusCard: View {
     let busInfo: BusInfo
     @Environment(\.themePalette) private var palette
+    @State private var selectedTripRequest: VictorianTripRequest?
+
+    private var showsVictorianTripDetails: Bool {
+        busInfo.provider == .victorianPTV
+    }
 
     var body: some View {
         CardContainer {
@@ -26,6 +31,12 @@ struct BusCard: View {
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
                         .background(palette.surfaceRaised, in: Capsule())
+                }
+
+                if showsVictorianTripDetails, busInfo.locationAvailable {
+                    Label("Tap a departure to see where that trip continues.", systemImage: "list.bullet.rectangle.portrait")
+                        .font(.caption)
+                        .foregroundStyle(palette.textSecondary)
                 }
 
                 if !busInfo.locationAvailable {
@@ -51,7 +62,12 @@ struct BusCard: View {
                             .foregroundStyle(palette.textSecondary)
                             .padding(.top, 4)
                         ForEach(busInfo.nearbyStops) { stop in
-                            BusStopSection(stop: stop)
+                            BusStopSection(
+                                stop: stop,
+                                isTripDetailEnabled: showsVictorianTripDetails
+                            ) { departure in
+                                selectedTripRequest = VictorianTripRequest(stopId: stop.id, departure: departure)
+                            }
                         }
                     }
 
@@ -65,11 +81,21 @@ struct BusCard: View {
                             .font(.caption.bold())
                             .foregroundStyle(palette.accent)
                         ForEach(busInfo.favouriteStops) { stop in
-                            BusStopSection(stop: stop)
+                            BusStopSection(
+                                stop: stop,
+                                isTripDetailEnabled: showsVictorianTripDetails
+                            ) { departure in
+                                selectedTripRequest = VictorianTripRequest(stopId: stop.id, departure: departure)
+                            }
                         }
                     }
                 }
             }
+        }
+        .sheet(item: $selectedTripRequest) { request in
+            VictorianTripDetailSheet(request: request)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         }
     }
 }
@@ -128,6 +154,8 @@ struct BusAlertRow: View {
 
 struct BusStopSection: View {
     let stop: NearbyBusStop
+    let isTripDetailEnabled: Bool
+    let onSelectDeparture: (BusDeparture) -> Void
 
     @Environment(\.themePalette) private var palette
     @State private var isExpanded = false
@@ -170,7 +198,12 @@ struct BusStopSection: View {
 
                 // Departure rows
                 ForEach(stop.departures) { departure in
-                    BusDepartureRow(departure: departure)
+                    BusDepartureRow(
+                        departure: departure,
+                        isInteractive: isTripDetailEnabled
+                    ) {
+                        onSelectDeparture(departure)
+                    }
                 }
             }
         }
@@ -181,9 +214,26 @@ struct BusStopSection: View {
 
 struct BusDepartureRow: View {
     let departure: BusDeparture
+    let isInteractive: Bool
+    let onTap: () -> Void
     @Environment(\.themePalette) private var palette
 
     var body: some View {
+        Group {
+            if isInteractive {
+                Button(action: onTap) {
+                    rowContent
+                }
+                .buttonStyle(.plain)
+            } else {
+                rowContent
+            }
+        }
+        .accessibilityAddTraits(isInteractive ? .isButton : [])
+        .accessibilityHint(isInteractive ? "Shows the stops remaining on this trip." : "")
+    }
+
+    private var rowContent: some View {
         HStack(spacing: 10) {
             // Route badge
             Text(departure.routeShortName)
@@ -220,6 +270,12 @@ struct BusDepartureRow: View {
                     .font(.transit(12, weight: .bold))
                     .foregroundStyle(statusColor)
             }
+
+            if isInteractive {
+                Image(systemName: "chevron.right")
+                    .font(.caption.bold())
+                    .foregroundStyle(palette.textTertiary)
+            }
         }
         .padding(.vertical, 2)
     }
@@ -255,6 +311,243 @@ struct BusDepartureRow: View {
         case .late:    return AppTheme.warning
         case .noData:  return palette.textSecondary
         case .skipped: return AppTheme.danger
+        }
+    }
+}
+
+private struct VictorianTripRequest: Identifiable {
+    let stopId: String
+    let departure: BusDeparture
+
+    var id: String { "\(departure.tripId):\(stopId):\(departure.stopSequence)" }
+}
+
+private struct VictorianTripDetailSheet: View {
+    let request: VictorianTripRequest
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.themePalette) private var palette
+    @State private var tripDetail: BusTripDetail?
+    @State private var isLoading = true
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if isLoading {
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .scaleEffect(1.2)
+                        Text("Loading trip stops…")
+                            .font(.subheadline)
+                            .foregroundStyle(palette.textSecondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let tripDetail {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 16) {
+                            summaryCard(tripDetail)
+                            stopsCard(tripDetail)
+                        }
+                        .padding()
+                    }
+                } else {
+                    ContentUnavailableView(
+                        "Trip Detail Unavailable",
+                        systemImage: "exclamationmark.triangle",
+                        description: Text(errorMessage ?? "This trip pattern could not be loaded.")
+                    )
+                }
+            }
+            .navigationTitle(request.departure.routeShortName)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+        .task(id: request.id) {
+            await loadTripDetail()
+        }
+    }
+
+    @ViewBuilder
+    private func summaryCard(_ tripDetail: BusTripDetail) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
+                Text(tripDetail.routeShortName)
+                    .font(.transit(22, weight: .heavy).monospacedDigit())
+                    .foregroundStyle(Color.black.opacity(0.84))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(palette.buttonBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(tripDetail.headsign ?? tripDetail.routeLongName)
+                        .font(.transit(18, weight: .bold))
+                        .foregroundStyle(palette.textPrimary)
+                    Text(tripDetail.routeLongName)
+                        .font(.subheadline)
+                        .foregroundStyle(palette.textSecondary)
+                        .lineLimit(2)
+                }
+            }
+
+            HStack(spacing: 10) {
+                tripMetric(
+                    title: "Selected Stop",
+                    value: tripDetail.selectedStopName,
+                    secondary: "Seq \(tripDetail.selectedStopSequence)"
+                )
+                tripMetric(
+                    title: "Trip Continues",
+                    value: "\(tripDetail.remainingStopCount) more stops",
+                    secondary: tripDetail.earlierStopCount > 0
+                        ? "Started \(tripDetail.earlierStopCount) stops earlier"
+                        : "This is the first stop"
+                )
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Final destination")
+                    .font(.caption.bold())
+                    .foregroundStyle(palette.textSecondary)
+                HStack(spacing: 8) {
+                    Text(tripDetail.terminalStopName)
+                        .font(.transit(16, weight: .bold))
+                        .foregroundStyle(palette.textPrimary)
+                    if let terminalTime = tripDetail.terminalScheduledTime {
+                        Text(terminalTime)
+                            .font(.caption.bold())
+                            .foregroundStyle(palette.textSecondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(palette.surfaceRaised, in: Capsule())
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .background(palette.mutedPanelBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    @ViewBuilder
+    private func stopsCard(_ tripDetail: BusTripDetail) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Stops From Here")
+                .font(.transit(18, weight: .bold))
+                .foregroundStyle(palette.textPrimary)
+
+            ForEach(Array(tripDetail.stopsFromSelected.enumerated()), id: \.element.id) { index, stop in
+                VictorianTripStopRow(
+                    stop: stop,
+                    isLast: index == tripDetail.stopsFromSelected.count - 1
+                )
+            }
+        }
+        .padding(16)
+        .background(palette.mutedPanelBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    @ViewBuilder
+    private func tripMetric(title: String, value: String, secondary: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption.bold())
+                .foregroundStyle(palette.textSecondary)
+            Text(value)
+                .font(.transit(15, weight: .bold))
+                .foregroundStyle(palette.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(secondary)
+                .font(.caption)
+                .foregroundStyle(palette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(palette.surfaceRaised.opacity(0.65))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private func loadTripDetail() async {
+        isLoading = true
+        errorMessage = nil
+        tripDetail = nil
+
+        do {
+            tripDetail = try await VictorianBusService.shared.fetchTripDetail(
+                for: request.departure,
+                stopId: request.stopId
+            )
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isLoading = false
+    }
+}
+
+private struct VictorianTripStopRow: View {
+    let stop: BusTripStopDetail
+    let isLast: Bool
+
+    @Environment(\.themePalette) private var palette
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(spacing: 0) {
+                Circle()
+                    .fill(stop.isSelectedStop ? palette.accent : palette.textTertiary.opacity(0.75))
+                    .frame(width: stop.isSelectedStop ? 12 : 9, height: stop.isSelectedStop ? 12 : 9)
+                    .padding(.top, 4)
+
+                if !isLast {
+                    Rectangle()
+                        .fill(palette.textTertiary.opacity(0.35))
+                        .frame(width: 2, height: 28)
+                        .padding(.top, 4)
+                }
+            }
+            .frame(width: 14)
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(stop.stopName)
+                        .font(.transit(15, weight: .bold))
+                        .foregroundStyle(palette.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    if stop.isSelectedStop {
+                        Text("Selected")
+                            .font(.caption2.bold())
+                            .foregroundStyle(palette.buttonForeground)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 4)
+                            .background(palette.buttonBackground, in: Capsule())
+                    }
+                }
+
+                HStack(spacing: 8) {
+                    if let stopCode = stop.stopCode, !stopCode.isEmpty {
+                        Text("Stop #\(stopCode)")
+                            .font(.caption)
+                            .foregroundStyle(palette.textSecondary)
+                    }
+
+                    if let scheduledTime = stop.scheduledTime {
+                        Text(scheduledTime)
+                            .font(.caption.bold())
+                            .foregroundStyle(stop.isSelectedStop ? palette.accent : palette.textSecondary)
+                    }
+                }
+            }
+
+            Spacer(minLength: 0)
         }
     }
 }

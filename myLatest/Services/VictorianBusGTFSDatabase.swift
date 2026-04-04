@@ -368,6 +368,59 @@ actor VictorianBusGTFSDatabase {
         let stopName: String
     }
 
+    func tripPattern(tripId: String) throws -> [TripPatternStop] {
+        guard let db else { throw GTFSDBError.notReady }
+
+        let sql = """
+            SELECT st.stop_id, s.stop_name, s.stop_code,
+                   st.arrival_time, st.departure_time,
+                   st.arrival_seconds, st.departure_seconds,
+                   st.stop_sequence
+            FROM stop_times st
+            JOIN stops s ON st.stop_id = s.stop_id
+            JOIN trips t ON st.trip_id = t.trip_id
+            JOIN routes r ON t.route_id = r.route_id
+            WHERE st.trip_id = ?
+              AND r.route_type = 3
+            ORDER BY st.stop_sequence ASC
+        """
+
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else {
+            throw GTFSDBError.queryFailed(String(cString: sqlite3_errmsg(db)))
+        }
+        defer { sqlite3_finalize(stmt) }
+
+        sqlite3_bind_text(stmt, 1, (tripId as NSString).utf8String, -1, nil)
+
+        var results: [TripPatternStop] = []
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            results.append(TripPatternStop(
+                stopId: String(cString: sqlite3_column_text(stmt, 0)),
+                stopName: String(cString: sqlite3_column_text(stmt, 1)),
+                stopCode: sqlite3_column_text(stmt, 2).map { String(cString: $0) },
+                arrivalTime: sqlite3_column_text(stmt, 3).map { String(cString: $0) },
+                departureTime: sqlite3_column_text(stmt, 4).map { String(cString: $0) },
+                arrivalSeconds: Int(sqlite3_column_int(stmt, 5)),
+                departureSeconds: Int(sqlite3_column_int(stmt, 6)),
+                stopSequence: Int(sqlite3_column_int(stmt, 7))
+            ))
+        }
+
+        return results
+    }
+
+    struct TripPatternStop {
+        let stopId: String
+        let stopName: String
+        let stopCode: String?
+        let arrivalTime: String?
+        let departureTime: String?
+        let arrivalSeconds: Int
+        let departureSeconds: Int
+        let stopSequence: Int
+    }
+
     private func downloadAndImport() async throws {
         defer {
             Task { @MainActor in

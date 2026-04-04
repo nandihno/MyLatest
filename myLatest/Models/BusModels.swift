@@ -91,6 +91,59 @@ struct BusDeparture: Identifiable {
     let stopSequence: Int
 }
 
+struct BusTripDetail: Identifiable {
+    let id: String
+    let tripId: String
+    let routeShortName: String
+    let routeLongName: String
+    let headsign: String?
+    let selectedStopName: String
+    let selectedStopSequence: Int
+    let earlierStopCount: Int
+    let remainingStopCount: Int
+    let terminalStopName: String
+    let terminalScheduledTime: String?
+    let stopsFromSelected: [BusTripStopDetail]
+
+    init(
+        tripId: String,
+        routeShortName: String,
+        routeLongName: String,
+        headsign: String?,
+        selectedStopName: String,
+        selectedStopSequence: Int,
+        earlierStopCount: Int,
+        remainingStopCount: Int,
+        terminalStopName: String,
+        terminalScheduledTime: String?,
+        stopsFromSelected: [BusTripStopDetail]
+    ) {
+        self.id = tripId
+        self.tripId = tripId
+        self.routeShortName = routeShortName
+        self.routeLongName = routeLongName
+        self.headsign = headsign
+        self.selectedStopName = selectedStopName
+        self.selectedStopSequence = selectedStopSequence
+        self.earlierStopCount = earlierStopCount
+        self.remainingStopCount = remainingStopCount
+        self.terminalStopName = terminalStopName
+        self.terminalScheduledTime = terminalScheduledTime
+        self.stopsFromSelected = stopsFromSelected
+    }
+}
+
+struct BusTripStopDetail: Identifiable {
+    let stopId: String
+    let stopName: String
+    let stopCode: String?
+    let scheduledTime: String?
+    let stopSequence: Int
+    let isSelectedStop: Bool
+
+    var id: String { "\(stopId):\(stopSequence)" }
+}
+
 enum BusDepartureStatus: String {
     case onTime  = "On Time"
     case early   = "Early"

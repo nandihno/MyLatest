@@ -13,6 +13,17 @@ final class VictorianBusService: BusDataProviding {
     static let shared = VictorianBusService()
     static let realtimeAPIKeyDefaultsKey = "victorianGTFSRealtimeApiKey"
 
+    enum TripDetailError: LocalizedError {
+        case tripPatternUnavailable
+
+        var errorDescription: String? {
+            switch self {
+            case .tripPatternUnavailable:
+                return "The stop pattern for this trip is not available right now."
+            }
+        }
+    }
+
     private init() {}
 
     let provider: BusProvider = .victorianPTV
@@ -91,6 +102,62 @@ final class VictorianBusService: BusDataProviding {
             alerts: [],
             localTimeAtFetch: currentMelbourneTimeString(),
             locationAvailable: true
+        )
+    }
+
+    func fetchTripDetail(
+        for departure: BusDeparture,
+        stopId: String
+    ) async throws -> BusTripDetail {
+        try await VictorianBusGTFSDatabase.shared.ensureReady()
+
+        let pattern = try await VictorianBusGTFSDatabase.shared.tripPattern(tripId: departure.tripId)
+        guard !pattern.isEmpty else {
+            throw TripDetailError.tripPatternUnavailable
+        }
+
+        guard let selectedIndex =
+            pattern.firstIndex(where: { $0.stopSequence == departure.stopSequence && $0.stopId == stopId })
+            ?? pattern.firstIndex(where: { $0.stopSequence == departure.stopSequence })
+            ?? pattern.firstIndex(where: { $0.stopId == stopId })
+        else {
+            throw TripDetailError.tripPatternUnavailable
+        }
+
+        let selectedStop = pattern[selectedIndex]
+        let trailingStops = pattern[selectedIndex...].map { stop in
+            let scheduledSeconds: Int? = {
+                if stop.departureSeconds > 0 { return stop.departureSeconds }
+                if stop.arrivalSeconds > 0 { return stop.arrivalSeconds }
+                return nil
+            }()
+
+            return BusTripStopDetail(
+                stopId: stop.stopId,
+                stopName: stop.stopName,
+                stopCode: stop.stopCode,
+                scheduledTime: scheduledSeconds.map(secondsToTimeString),
+                stopSequence: stop.stopSequence,
+                isSelectedStop: stop.stopSequence == selectedStop.stopSequence && stop.stopId == selectedStop.stopId
+            )
+        }
+
+        guard let terminalStop = trailingStops.last else {
+            throw TripDetailError.tripPatternUnavailable
+        }
+
+        return BusTripDetail(
+            tripId: departure.tripId,
+            routeShortName: departure.routeShortName,
+            routeLongName: departure.routeLongName,
+            headsign: departure.headsign,
+            selectedStopName: selectedStop.stopName,
+            selectedStopSequence: selectedStop.stopSequence,
+            earlierStopCount: selectedIndex,
+            remainingStopCount: max(0, trailingStops.count - 1),
+            terminalStopName: terminalStop.stopName,
+            terminalScheduledTime: terminalStop.scheduledTime,
+            stopsFromSelected: trailingStops
         )
     }
 
