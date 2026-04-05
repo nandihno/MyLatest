@@ -396,7 +396,7 @@ actor GTFSDatabase {
         guard let db else { throw GTFSDBError.notReady }
 
         let sql = """
-            SELECT st.stop_id, s.stop_name, s.stop_code,
+            SELECT st.stop_id, s.stop_name, s.stop_code, s.stop_lat, s.stop_lon,
                    st.arrival_time, st.departure_time,
                    st.arrival_seconds, st.departure_seconds,
                    st.stop_sequence
@@ -423,11 +423,13 @@ actor GTFSDatabase {
                 stopId: String(cString: sqlite3_column_text(stmt, 0)),
                 stopName: String(cString: sqlite3_column_text(stmt, 1)),
                 stopCode: sqlite3_column_text(stmt, 2).map { String(cString: $0) },
-                arrivalTime: sqlite3_column_text(stmt, 3).map { String(cString: $0) },
-                departureTime: sqlite3_column_text(stmt, 4).map { String(cString: $0) },
-                arrivalSeconds: Int(sqlite3_column_int(stmt, 5)),
-                departureSeconds: Int(sqlite3_column_int(stmt, 6)),
-                stopSequence: Int(sqlite3_column_int(stmt, 7))
+                stopLat: sqlite3_column_double(stmt, 3),
+                stopLon: sqlite3_column_double(stmt, 4),
+                arrivalTime: sqlite3_column_text(stmt, 5).map { String(cString: $0) },
+                departureTime: sqlite3_column_text(stmt, 6).map { String(cString: $0) },
+                arrivalSeconds: Int(sqlite3_column_int(stmt, 7)),
+                departureSeconds: Int(sqlite3_column_int(stmt, 8)),
+                stopSequence: Int(sqlite3_column_int(stmt, 9))
             ))
         }
 
@@ -438,6 +440,8 @@ actor GTFSDatabase {
         let stopId: String
         let stopName: String
         let stopCode: String?
+        let stopLat: Double
+        let stopLon: Double
         let arrivalTime: String?
         let departureTime: String?
         let arrivalSeconds: Int

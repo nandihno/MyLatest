@@ -141,6 +141,8 @@ struct BusTripStopDetail: Identifiable {
     let stopId: String
     let stopName: String
     let stopCode: String?
+    let latitude: Double
+    let longitude: Double
     let scheduledTime: String?
     let predictedTime: String?
     let delaySeconds: Int?

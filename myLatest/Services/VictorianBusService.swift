@@ -136,6 +136,8 @@ final class VictorianBusService: BusDataProviding {
                 stopId: stop.stopId,
                 stopName: stop.stopName,
                 stopCode: stop.stopCode,
+                latitude: stop.stopLat,
+                longitude: stop.stopLon,
                 scheduledTime: scheduledSeconds.map(secondsToTimeString),
                 predictedTime: realtime.predictedTime,
                 delaySeconds: realtime.delaySeconds,

@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import MapKit
 
 // MARK: - Bus Card
 
@@ -379,6 +380,8 @@ private struct BusTripDetailSheet: View {
 
     @ViewBuilder
     private func summaryCard(_ tripDetail: BusTripDetail) -> some View {
+        let selectedStop = tripDetail.stopsFromSelected.first(where: \.isSelectedStop)
+
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top, spacing: 12) {
                 Text(tripDetail.routeShortName)
@@ -400,20 +403,30 @@ private struct BusTripDetailSheet: View {
                 }
             }
 
-            HStack(spacing: 10) {
+            if let selectedStop {
+                HStack(alignment: .top, spacing: 10) {
+                    tripMetric(
+                        title: "Selected Stop",
+                        value: tripDetail.selectedStopName,
+                        secondary: "Seq \(tripDetail.selectedStopSequence)"
+                    )
+                    BusStopMiniMap(stop: selectedStop)
+                }
+            } else {
                 tripMetric(
                     title: "Selected Stop",
                     value: tripDetail.selectedStopName,
                     secondary: "Seq \(tripDetail.selectedStopSequence)"
                 )
-                tripMetric(
-                    title: "Trip Continues",
-                    value: "\(tripDetail.remainingStopCount) more stops",
-                    secondary: tripDetail.earlierStopCount > 0
-                        ? "Started \(tripDetail.earlierStopCount) stops earlier"
-                        : "This is the first stop"
-                )
             }
+
+            tripMetric(
+                title: "Trip Continues",
+                value: "\(tripDetail.remainingStopCount) more stops",
+                secondary: tripDetail.earlierStopCount > 0
+                    ? "Started \(tripDetail.earlierStopCount) stops earlier"
+                    : "This is the first stop"
+            )
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("Final destination")
@@ -511,6 +524,49 @@ private struct BusTripDetailSheet: View {
         case .victorianPTV:
             return VictorianBusService.shared
         }
+    }
+}
+
+private struct BusStopMiniMap: View {
+    let stop: BusTripStopDetail
+
+    @Environment(\.themePalette) private var palette
+
+    private var coordinate: CLLocationCoordinate2D {
+        CLLocationCoordinate2D(latitude: stop.latitude, longitude: stop.longitude)
+    }
+
+    private var region: MKCoordinateRegion {
+        MKCoordinateRegion(
+            center: coordinate,
+            span: MKCoordinateSpan(latitudeDelta: 0.004, longitudeDelta: 0.004)
+        )
+    }
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            Map(initialPosition: .region(region), interactionModes: []) {
+                Marker(stop.stopName, coordinate: coordinate)
+                    .tint(palette.accent)
+            }
+            .mapStyle(.standard(elevation: .flat))
+
+            Text("Stop Map")
+                .font(.caption2.bold())
+                .foregroundStyle(palette.textPrimary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(.ultraThinMaterial, in: Capsule())
+                .padding(10)
+        }
+        .frame(maxWidth: .infinity, minHeight: 126, maxHeight: 126)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(palette.textTertiary.opacity(0.16), lineWidth: 1)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Map showing \(stop.stopName)")
     }
 }
 
