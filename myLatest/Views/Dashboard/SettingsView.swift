@@ -29,6 +29,7 @@ struct SettingsView: View {
     @State private var gtfsRedownloadStatus = ""
     @State private var gtfsDataReady = false
     @State private var gtfsDownloadInProgress = false
+    @State private var queenslandBundledDBAvailable = false
     @State private var victorianBundledDBAvailable = false
 
     private var useGoogleMaps: Binding<Bool> {
@@ -235,11 +236,17 @@ struct SettingsView: View {
                 }
             } else {
                 VStack(alignment: .leading, spacing: 8) {
-                    Label("Bus schedule data needs to be downloaded before you can search and add favourite stops.", systemImage: "exclamationmark.triangle.fill")
+                    Label(
+                        queenslandBundledDBAvailable
+                            ? "Bundled timetable data is available to install locally before you browse and save favourite stops."
+                            : "Bus schedule data needs to be downloaded before you can search and add favourite stops.",
+                        systemImage: queenslandBundledDBAvailable ? "shippingbox.fill" : "exclamationmark.triangle.fill"
+                    )
                         .font(.subheadline)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(queenslandBundledDBAvailable ? Color.secondary : Color.orange)
 
                     Button {
+                        gtfsRedownloadStatus = ""
                         gtfsDownloadInProgress = true
                         Task {
                             do {
@@ -251,16 +258,29 @@ struct SettingsView: View {
                             gtfsDownloadInProgress = false
                         }
                     } label: {
-                        Label("Download Bus Data (~26 MB)", systemImage: "arrow.down.circle.fill")
+                        Label(
+                            queenslandBundledDBAvailable ? "Install Bundled Bus Data" : "Download Bus Data (~26 MB)",
+                            systemImage: queenslandBundledDBAvailable ? "shippingbox.fill" : "arrow.down.circle.fill"
+                        )
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
+
+                    if !gtfsRedownloadStatus.isEmpty {
+                        Text(gtfsRedownloadStatus)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
         } header: {
             Text("SEQ Bus")
         } footer: {
-            Text("Data provided by TransLink. Schedule and real-time data is downloaded on first use (~26 MB). Times are displayed in Queensland time (AEST, UTC+10).")
+            Text(
+                queenslandBundledDBAvailable
+                    ? "Data provided by TransLink. Static timetable data is bundled with the app and installed locally on first use. If the bundled asset is unavailable, the app falls back to downloading the SEQ GTFS ZIP (~26 MB). Times are displayed in Queensland time (AEST, UTC+10)."
+                    : "Data provided by TransLink. Schedule and real-time data is downloaded on first use (~26 MB). Times are displayed in Queensland time (AEST, UTC+10)."
+            )
         }
     }
 
@@ -270,26 +290,45 @@ struct SettingsView: View {
             Button(role: .destructive) {
                 showDeleteGTFSConfirmation = true
             } label: {
-                Label("Delete & Re-download Bus Data", systemImage: "arrow.triangle.2.circlepath")
+                Label(
+                    queenslandBundledDBAvailable ? "Reinstall Bundled Bus Data" : "Delete & Re-download Bus Data",
+                    systemImage: "arrow.triangle.2.circlepath"
+                )
             }
             .confirmationDialog(
-                "Delete Bus Data?",
+                queenslandBundledDBAvailable ? "Reinstall Bundled Bus Data?" : "Delete Bus Data?",
                 isPresented: $showDeleteGTFSConfirmation,
                 titleVisibility: .visible
             ) {
-                Button("Delete & Re-download", role: .destructive) {
+                Button(
+                    queenslandBundledDBAvailable ? "Reinstall Bundled Bus Data" : "Delete & Re-download",
+                    role: .destructive
+                ) {
                     Task {
                         do {
-                            try await GTFSDatabase.shared.resetDatabase()
-                            gtfsDataReady = false
-                            gtfsRedownloadStatus = ""
+                            if queenslandBundledDBAvailable {
+                                gtfsDownloadInProgress = true
+                                try await GTFSDatabase.shared.refreshDatabase()
+                                gtfsDataReady = true
+                                gtfsRedownloadStatus = "Bundled Queensland bus data was reinstalled from the app package."
+                                gtfsDownloadInProgress = false
+                            } else {
+                                try await GTFSDatabase.shared.resetDatabase()
+                                gtfsDataReady = false
+                                gtfsRedownloadStatus = ""
+                            }
                         } catch {
                             gtfsRedownloadStatus = "Error: \(error.localizedDescription)"
+                            gtfsDownloadInProgress = false
                         }
                     }
                 }
             } message: {
-                Text("This will delete the cached bus schedule data (~26 MB). You will need to re-download it to use favourite stops and bus departures.")
+                Text(
+                    queenslandBundledDBAvailable
+                        ? "This replaces the currently installed Queensland bus database with the bundled copy shipped inside the app."
+                        : "This will delete the cached bus schedule data (~26 MB). You will need to re-download it to use favourite stops and bus departures."
+                )
             }
 
             if !gtfsRedownloadStatus.isEmpty {
@@ -579,15 +618,18 @@ struct SettingsView: View {
             gtfsDataReady = false
             gtfsDownloadInProgress = false
             gtfsRedownloadStatus = ""
+            queenslandBundledDBAvailable = false
             victorianBundledDBAvailable = false
             return
         }
 
         switch transportRegion {
         case .queensland:
+            queenslandBundledDBAvailable = await GTFSDatabase.shared.hasBundledDatabaseAsset()
             victorianBundledDBAvailable = false
             gtfsDataReady = await GTFSDatabase.shared.isDatabaseReady()
         case .victorian:
+            queenslandBundledDBAvailable = false
             victorianBundledDBAvailable = await VictorianBusGTFSDatabase.shared.hasBundledDatabaseAsset()
             gtfsDataReady = await VictorianBusGTFSDatabase.shared.isDatabaseReady()
         }

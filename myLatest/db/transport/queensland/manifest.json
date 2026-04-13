@@ -1,0 +1,20 @@
+{
+  "dataset": "queensland-bus",
+  "sourceUrl": "https://gtfsrt.api.translink.com.au/GTFS/SEQ_GTFS.zip",
+  "modeFolder": "SEQ",
+  "generatedAt": "2026-04-13T06:06:04.940Z",
+  "sqliteFile": "gtfs_seq.sqlite3",
+  "sha256": "d79c3acc1da7ea2d19d3f0a6c9c9298e4d8ad93e741839c9ef2027ae0d23730b",
+  "rowCounts": {
+    "stops": 13047,
+    "routes": 1400,
+    "trips": 142393,
+    "stop_times": 3369785,
+    "calendar": 184,
+    "calendar_dates": 105
+  },
+  "notes": [
+    "Built from the TransLink South East Queensland GTFS static ZIP.",
+    "SQLite schema and index names are aligned with the existing iOS Queensland bus database contract."
+  ]
+}

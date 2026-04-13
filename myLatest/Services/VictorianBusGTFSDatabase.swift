@@ -86,7 +86,7 @@ actor VictorianBusGTFSDatabase {
     }
 
     private var bundledManifestURL: URL? {
-        bundledResourceURL(named: "manifest", withExtension: "json")
+        bundledResourceURL(named: "gtfs_victorian_bus_manifest", withExtension: "json")
     }
 
     func hasBundledDatabaseAsset() -> Bool {

@@ -98,6 +98,9 @@ actor GTFSDatabase {
     static let shared = GTFSDatabase()
 
     private let gtfsZipURL = URL(string: "https://gtfsrt.api.translink.com.au/GTFS/SEQ_GTFS.zip")!
+    private let bundledDatabaseFileName = "gtfs_seq"
+    private let bundledDatabaseExtension = "sqlite3"
+    private let bundledDatabaseSubdirectory = "db/transport/queensland"
     private var db: OpaquePointer?
     private var isImported = false
 
@@ -111,60 +114,55 @@ actor GTFSDatabase {
         return caches.appendingPathComponent("gtfs_extracted", isDirectory: true)
     }
 
+    private var localZipURL: URL {
+        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        return caches.appendingPathComponent("SEQ_GTFS.zip")
+    }
+
     // MARK: - Public API
 
     /// Returns true if the database file exists and has data, without triggering a download.
     func isDatabaseReady() -> Bool {
         if isImported && db != nil { return true }
-        guard FileManager.default.fileExists(atPath: dbPath) else { return false }
-        // Try opening and checking
         do {
-            try openDB()
-            let count = queryCount("SELECT COUNT(*) FROM stops")
-            if count > 0 {
-                isImported = true
-                return true
-            }
+            return try validateInstalledDatabase()
         } catch {}
         return false
     }
 
-    /// Ensures the database is ready. Downloads GTFS ZIP if needed, imports into SQLite.
+    func hasBundledDatabaseAsset() -> Bool {
+        bundledDatabaseAssetURL() != nil
+    }
+
+    /// Ensures the database is ready. Installs the bundled database if available,
+    /// otherwise downloads the GTFS ZIP and imports it into SQLite.
     func ensureReady() async throws {
         if isImported && db != nil { return }
 
-        // Check if database already exists and has data
-        if FileManager.default.fileExists(atPath: dbPath) {
-            try openDB()
-            let count = queryCount("SELECT COUNT(*) FROM stops")
-            if count > 0 {
-                isImported = true
-                return
-            }
+        if try validateInstalledDatabase() {
+            return
         }
 
-        // Need to download and import
+        if try await installBundledDatabaseIfAvailable() {
+            return
+        }
+
         try await downloadAndImport()
     }
 
-    /// Deletes the database and resets state so the next `ensureReady()` re-downloads everything.
+    /// Deletes the cached database and resets state so the next `ensureReady()`
+    /// reinstalls bundled data when available, otherwise re-downloads everything.
     func resetDatabase() throws {
-        // Close existing connection
-        if let db {
-            sqlite3_close(db)
-        }
-        db = nil
-        isImported = false
+        closeDB()
+        try removeCachedDatabaseArtifacts()
+    }
 
-        let fm = FileManager.default
-        // Remove SQLite file
-        if fm.fileExists(atPath: dbPath) {
-            try fm.removeItem(atPath: dbPath)
-        }
-        // Remove extracted CSV directory
-        if fm.fileExists(atPath: extractDir.path) {
-            try fm.removeItem(at: extractDir)
-        }
+    /// Rebuilds the local database immediately using the normal readiness flow.
+    /// This prefers the bundled database and only downloads if the bundle is unavailable.
+    func refreshDatabase() async throws {
+        closeDB()
+        try removeCachedDatabaseArtifacts()
+        try await ensureReady()
     }
 
     /// Search bus stops by name (case-insensitive LIKE query).
@@ -451,16 +449,49 @@ actor GTFSDatabase {
 
     // MARK: - Download & Import
 
+    private func installBundledDatabaseIfAvailable() async throws -> Bool {
+        guard let bundledURL = bundledDatabaseAssetURL() else { return false }
+
+        await MainActor.run {
+            GTFSDownloadProgress.shared.update(
+                stage: "Installing bundled bus data…",
+                detail: "Preparing Queensland timetable database"
+            )
+        }
+
+        do {
+            closeDB()
+            try removeCachedDatabaseArtifacts()
+
+            let dbURL = URL(fileURLWithPath: dbPath)
+            try FileManager.default.createDirectory(
+                at: dbURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try FileManager.default.copyItem(at: bundledURL, to: dbURL)
+
+            if try validateInstalledDatabase() {
+                await MainActor.run { GTFSDownloadProgress.shared.finish() }
+                print("✅ Bundled Queensland GTFS database installed.")
+                return true
+            }
+        } catch {
+            print("⚠️ Bundled Queensland GTFS install failed: \(error.localizedDescription)")
+        }
+
+        try? removeCachedDatabaseArtifacts()
+        await MainActor.run { GTFSDownloadProgress.shared.finish() }
+        return false
+    }
+
     private func downloadAndImport() async throws {
         await MainActor.run { GTFSDownloadProgress.shared.update(stage: "Downloading bus schedule data…", detail: "~26 MB from TransLink") }
         print("📦 Downloading SEQ GTFS ZIP…")
         let (zipURL, _) = try await URLSession.shared.download(from: gtfsZipURL)
 
         // Move to a known location
-        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
-        let localZip = caches.appendingPathComponent("SEQ_GTFS.zip")
-        try? FileManager.default.removeItem(at: localZip)
-        try FileManager.default.moveItem(at: zipURL, to: localZip)
+        try? FileManager.default.removeItem(at: localZipURL)
+        try FileManager.default.moveItem(at: zipURL, to: localZipURL)
 
         // Extract
         await MainActor.run { GTFSDownloadProgress.shared.update(stage: "Extracting schedule files…") }
@@ -468,7 +499,7 @@ actor GTFSDatabase {
         let extractTo = self.extractDir
         try? FileManager.default.removeItem(at: extractTo)
         try FileManager.default.createDirectory(at: extractTo, withIntermediateDirectories: true)
-        try extractZip(at: localZip, to: extractTo)
+        try extractZip(at: localZipURL, to: extractTo)
 
         // Import into SQLite
         await MainActor.run { GTFSDownloadProgress.shared.update(stage: "Building local database…", detail: "Importing stops, routes & timetables") }
@@ -487,6 +518,69 @@ actor GTFSDatabase {
     }
 
     // MARK: - SQLite helpers
+
+    private func closeDB() {
+        if let db {
+            sqlite3_close(db)
+        }
+        db = nil
+        isImported = false
+    }
+
+    private func validateInstalledDatabase() throws -> Bool {
+        guard FileManager.default.fileExists(atPath: dbPath) else { return false }
+
+        try openDB()
+        let count = queryCount("SELECT COUNT(*) FROM stops")
+        if count > 0 {
+            isImported = true
+            return true
+        }
+
+        closeDB()
+        return false
+    }
+
+    private func removeCachedDatabaseArtifacts() throws {
+        let fm = FileManager.default
+        let dbURL = URL(fileURLWithPath: dbPath)
+        let sidecarURLs = [
+            dbURL,
+            dbURL.appendingPathExtension("wal"),
+            dbURL.appendingPathExtension("shm"),
+            extractDir,
+            localZipURL,
+        ]
+
+        for url in sidecarURLs where fm.fileExists(atPath: url.path) {
+            try fm.removeItem(at: url)
+        }
+    }
+
+    private func bundledDatabaseAssetURL() -> URL? {
+        if let direct = Bundle.main.url(
+            forResource: bundledDatabaseFileName,
+            withExtension: bundledDatabaseExtension,
+            subdirectory: bundledDatabaseSubdirectory
+        ) {
+            return direct
+        }
+
+        if let flattened = Bundle.main.url(
+            forResource: bundledDatabaseFileName,
+            withExtension: bundledDatabaseExtension
+        ) {
+            return flattened
+        }
+
+        guard let resourceURL = Bundle.main.resourceURL else { return nil }
+        let candidatePaths = [
+            resourceURL.appendingPathComponent("\(bundledDatabaseSubdirectory)/\(bundledDatabaseFileName).\(bundledDatabaseExtension)"),
+            resourceURL.appendingPathComponent("\(bundledDatabaseFileName).\(bundledDatabaseExtension)"),
+        ]
+
+        return candidatePaths.first { FileManager.default.fileExists(atPath: $0.path) }
+    }
 
     private func openDB() throws {
         if db != nil { return }
